@@ -12,6 +12,22 @@ public class Evento
     public Evento(string nombre, string descripcion, DateTime fecha, string lugar)
     {
         Id = Guid.NewGuid();
+
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            throw new ArgumentException("El nombre del evento no puede estar vacío o contener espacios en blanco");
+        }
+
+        if (fecha < DateTime.Now)
+        {
+            throw new ArgumentException("La fecha del evento no puede ser de un día que ya pasó");
+        }
+
+        if (string.IsNullOrWhiteSpace(lugar))
+        {
+            throw new ArgumentException("El lugar del evento no puede estar vacío o contener espacios en blanco");
+        }
+
         Nombre = nombre;
         Descripcion = descripcion;
         Fecha = fecha;

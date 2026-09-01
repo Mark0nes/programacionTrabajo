@@ -1,5 +1,6 @@
 namespace GestionEventos.Data;
 using GestionEventos.Logica;
+using Newtonsoft.Json;
 
 public class EntradaRepository
 {
@@ -16,5 +17,14 @@ public class EntradaRepository
         {
             return new List<Entrada>();
         }
+
+        string json = File.ReadAllText(_rutaArchivo);
+        return JsonConvert.DeserializeObject<List<Entrada>>(json) ?? new List<Entrada>();
+    }
+
+    public void GuardarEntradas(List<Entrada> entradas)
+    {
+        string json = JsonConvert.SerializeObject(entradas, Formatting.Indented);
+        File.WriteAllText(_rutaArchivo,json);
     }
 }

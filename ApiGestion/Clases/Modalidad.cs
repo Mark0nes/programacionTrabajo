@@ -12,6 +12,17 @@ public class Modalidad
     public Modalidad(string nombre, decimal precio, string beneficios, int cupoMaximo)
     {
         Id = Guid.NewGuid();
+
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            throw new ArgumentException("El nombre no puede estar vacío o contener espacios en blanco");
+        }
+
+        if (precio <= 0)
+        {
+            throw new ArgumentException("El precio no puede ser menor o igual a cero");
+        }
+
         Nombre = nombre;
         Precio = precio;
         Beneficios = beneficios;
@@ -32,7 +43,7 @@ public class Modalidad
         }
         if (CupoDisponible - cantidad < 0)
         {
-            throw new InvalidOperationException("No hay suficiente cupo disponible.");
+            throw new ArgumentException("No hay suficiente cupo disponible.");
         }
 
         CupoDisponible -= cantidad;
@@ -46,7 +57,7 @@ public class Modalidad
         }
         if (CupoDisponible + cantidad > CupoMaximo)
         {
-            throw new InvalidOperationException("No se puede cancelar la venta, excede el cupo máximo.");
+            throw new ArgumentException("No se puede cancelar la venta, excede el cupo máximo.");
         }
 
         CupoDisponible += cantidad;
