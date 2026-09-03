@@ -1,26 +1,26 @@
 namespace GestionEventos.Logica;
 using GestionEventos.Data;
 
-public class EventoService
+public class ModalidadService
 {
-    private readonly EventoRepository _repository;
+    private readonly ModalidadRepository _repository;
 
-    public EventoService()
+    public ModalidadService()
     {
-        _repository = new EventoRepository("eventos.json");
+        _repository = new ModalidadRepository("modalidades.json");
     }
 
-    public List<Evento> ObtenerTodos()
+    public List<Modalidad> ObtenerTodos()
     {
-        return _repository.ObtenerEventos();
+        return _repository.ObtenerModa();
     }
 
-    public Evento? ObtenerPorId(Guid id)
+    public Evento ObtenerPorId(Guid id)
     {
         return _repository.ObtenerEventos().FirstOrDefault(e => e.Id == id);
     }
 
-    public List<Evento> ObtenerPorFecha(DateTime fecha)
+    public List<Modalidad> ObtenerPorFecha(DateTime fecha)
     {
         return _repository.ObtenerEventos().Where(e => e.Fecha == fecha).ToList();
     }
@@ -52,31 +52,11 @@ public class EventoService
         return nuevoEvento;
     }
 
-    public Evento? AgregarModalidad(Guid idModalidad, Guid idEvento)
+    public Evento AgregarModalidad(Modalidad modalidad, Guid idEvento)
     {
         var eventos = _repository.ObtenerEventos();
         var eventoModificado = eventos.FirstOrDefault(e=>e.Id == idEvento);
-
-        if (eventoModificado == null)
-        {
-            throw new ArgumentException("El evento a buscar no se encontró. Verifique el Id del mismo.");
-        }
-
-        eventoModificado.AgregarModalidad(eventoModificado.ObtenerModalidadPorId(idModalidad));
-        return eventoModificado;
-    }
-
-    public Evento EliminarModalidad(Guid idModalidad, Guid idEvento)
-    {
-        var eventos = _repository.ObtenerEventos();
-        var eventoModificado = eventos.FirstOrDefault(e=>e.Id == idEvento);
-
-        if (eventoModificado == null)
-        {
-            throw new ArgumentException("El evento a buscar no se encontró. Verifique el Id del mismo.");
-        }
-
-        eventoModificado.EliminarrModalidad(eventoModificado.ObtenerModalidadPorId(idModalidad));
+        eventoModificado.AgregarModalidad(modalidad);
         return eventoModificado;
     }
 
@@ -84,12 +64,6 @@ public class EventoService
     {
         var eventos = _repository.ObtenerEventos();
         var eventoModificado = eventos.FirstOrDefault(e=>e.Id == idEvento);
-
-        if (eventoModificado == null)
-        {
-            throw new ArgumentException("El evento a buscar no se encontró. Verifique el Id del mismo.");
-        }
-
         eventoModificado.Cancelar();
         return eventoModificado;
     }
@@ -98,12 +72,6 @@ public class EventoService
     {
         var eventos = _repository.ObtenerEventos();
         var eventoModificado = eventos.FirstOrDefault(e=>e.Id == idEvento);
-
-        if (eventoModificado == null)
-        {
-            throw new ArgumentException("El evento a buscar no se encontró. Verifique el Id del mismo.");
-        }
-        
         return eventoModificado.EstaDisponible();
     }
 }

@@ -30,6 +30,21 @@ public class Compra
         return Entradas;
     }
 
+    public Modalidad? ObtenerModalidadDeCompra()
+    {
+        return  Entradas[0].ModalidadEntrada;
+    }
+
+    public Evento? ObtenerEventoDeCompra()
+    {
+        return  Entradas[0].EventoEntrada;
+    }
+
+    public Entrada ObtenerEntradaPorId(Guid id)
+    {
+        return Entradas.First(v => v.EventoEntrada.Id == id);
+    }
+
     public decimal CalcularTotal()
     {
         return Entradas.Sum(e => e.CalcularPrecio());

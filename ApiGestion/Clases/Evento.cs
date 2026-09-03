@@ -1,3 +1,5 @@
+using Newtonsoft.Json.Converters;
+
 namespace GestionEventos.Logica;
 
 public class Evento
@@ -44,9 +46,19 @@ public class Evento
         Modalidades.Add(modalidad);
     }
 
+    public void EliminarrModalidad(Modalidad modalidad)
+    {
+        Modalidades.Remove(modalidad);
+    }
+
     public List<Modalidad> ObtenerModalidades()
     {
         return Modalidades;
+    }
+
+    public Modalidad ObtenerModalidadPorId(Guid id)
+    {
+        return Modalidades.First(v => v.Id == id);
     }
 
     public void Cancelar()
