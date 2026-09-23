@@ -1,30 +1,48 @@
 namespace GestionEventos.Data;
+
 using GestionEventos.Logica;
-using Newtonsoft.Json;
 
 public class EntradaRepository
 {
-    private readonly string _rutaArchivo;
+    private readonly CompraRepository _compraRepository;
 
-    public EntradaRepository(string rutaArchivo)
+    public EntradaRepository(CompraRepository? compraRepository = null)
     {
-        _rutaArchivo = rutaArchivo;
+        _compraRepository = compraRepository ?? new CompraRepository();
     }
 
     public List<Entrada> ObtenerEntradas()
     {
-        if (!File.Exists(_rutaArchivo))
-        {
-            return new List<Entrada>();
-        }
-
-        string json = File.ReadAllText(_rutaArchivo);
-        return JsonConvert.DeserializeObject<List<Entrada>>(json) ?? new List<Entrada>();
+        var compras = _compraRepository.ObtenerCompras();
+        return compras.SelectMany(c => c.Entradas).ToList();
     }
 
-    public void GuardarEntradas(List<Entrada> entradas)
+    public Entrada? ObtenerPorCodigo(string codigo)
     {
-        string json = JsonConvert.SerializeObject(entradas, Formatting.Indented);
-        File.WriteAllText(_rutaArchivo,json);
+        if (string.IsNullOrWhiteSpace(codigo)) return null;
+        string codLimpio = codigo.Trim().ToUpperInvariant();
+        return ObtenerEntradas().FirstOrDefault(e => e.Codigo.Equals(codLimpio, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public void ActualizarEntrada(Entrada entradaModificada)
+    {
+        var compras = _compraRepository.ObtenerCompras();
+        bool encontrada = false;
+
+        foreach (var compra in compras)
+        {
+            var idx = compra.Entradas.FindIndex(e => e.Codigo.Equals(entradaModificada.Codigo, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0)
+            {
+                compra.Entradas[idx] = entradaModificada;
+                encontrada = true;
+                break;
+            }
+        }
+
+        if (encontrada)
+        {
+            _compraRepository.GuardarCompras(compras);
+        }
     }
 }

@@ -1,0 +1,76 @@
+[
+  {
+    "Id": "6087528b-f7af-4d13-9a95-5df2a3b7ef43",
+    "DniComprador": "40123456",
+    "FechaCompra": "2026-09-04T22:53:05.8857613-03:00",
+    "IdEvento": "a1111111-1111-1111-1111-111111111111",
+    "NombreEvento": "Festival Primavera Sound 2026",
+    "IdModalidad": "b1111111-1111-1111-1111-111111111111",
+    "NombreModalidad": "Entrada General",
+    "Cantidad": 5,
+    "PrecioUnitario": 15000.0,
+    "Total": 63750.0,
+    "Entradas": [
+      {
+        "Codigo": "6Q3R1Z",
+        "IdEvento": "a1111111-1111-1111-1111-111111111111",
+        "NombreEvento": "Festival Primavera Sound 2026",
+        "IdModalidad": "b1111111-1111-1111-1111-111111111111",
+        "NombreModalidad": "Entrada General",
+        "IdCompra": "6087528b-f7af-4d13-9a95-5df2a3b7ef43",
+        "PrecioUnitario": 12750.0,
+        "Usada": true,
+        "FechaUso": "2026-09-04T22:53:06.2792785-03:00",
+        "Cancelada": false
+      },
+      {
+        "Codigo": "G4BXEZ",
+        "IdEvento": "a1111111-1111-1111-1111-111111111111",
+        "NombreEvento": "Festival Primavera Sound 2026",
+        "IdModalidad": "b1111111-1111-1111-1111-111111111111",
+        "NombreModalidad": "Entrada General",
+        "IdCompra": "6087528b-f7af-4d13-9a95-5df2a3b7ef43",
+        "PrecioUnitario": 12750.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": true
+      },
+      {
+        "Codigo": "OMJ4YL",
+        "IdEvento": "a1111111-1111-1111-1111-111111111111",
+        "NombreEvento": "Festival Primavera Sound 2026",
+        "IdModalidad": "b1111111-1111-1111-1111-111111111111",
+        "NombreModalidad": "Entrada General",
+        "IdCompra": "6087528b-f7af-4d13-9a95-5df2a3b7ef43",
+        "PrecioUnitario": 12750.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "8TMHAP",
+        "IdEvento": "a1111111-1111-1111-1111-111111111111",
+        "NombreEvento": "Festival Primavera Sound 2026",
+        "IdModalidad": "b1111111-1111-1111-1111-111111111111",
+        "NombreModalidad": "Entrada General",
+        "IdCompra": "6087528b-f7af-4d13-9a95-5df2a3b7ef43",
+        "PrecioUnitario": 12750.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      },
+      {
+        "Codigo": "UQ853M",
+        "IdEvento": "a1111111-1111-1111-1111-111111111111",
+        "NombreEvento": "Festival Primavera Sound 2026",
+        "IdModalidad": "b1111111-1111-1111-1111-111111111111",
+        "NombreModalidad": "Entrada General",
+        "IdCompra": "6087528b-f7af-4d13-9a95-5df2a3b7ef43",
+        "PrecioUnitario": 12750.0,
+        "Usada": false,
+        "FechaUso": null,
+        "Cancelada": false
+      }
+    ]
+  }
+]

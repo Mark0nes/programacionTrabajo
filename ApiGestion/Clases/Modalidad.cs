@@ -2,77 +2,86 @@ namespace GestionEventos.Logica;
 
 public class Modalidad
 {
-    public Guid Id { get; private set; }
-    public string Nombre { get; private set; }
-    public decimal Precio { get; private set; }
-    public string Beneficios { get; private set; }
-    public int CupoMaximo { get; private set; }
-    public int CupoDisponible { get; private set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Nombre { get; set; } = string.Empty;
+    public decimal Precio { get; set; }
+    public string Beneficios { get; set; } = string.Empty;
+    public int CupoMaximo { get; set; }
+    public int CupoDisponible { get; set; }
+
+    public Modalidad()
+    {
+    }
 
     public Modalidad(string nombre, decimal precio, string beneficios, int cupoMaximo)
     {
-        Id = Guid.NewGuid();
-
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            throw new ArgumentException("El nombre no puede estar vacío o contener espacios en blanco");
+            throw new ArgumentException("El nombre no puede estar vacío o contener solo espacios.");
         }
 
         if (precio <= 0)
         {
-            throw new ArgumentException("El precio no puede ser menor o igual a cero");
+            throw new ArgumentException("El precio debe ser mayor a cero.");
         }
 
-        Nombre = nombre;
+        if (cupoMaximo <= 0)
+        {
+            throw new ArgumentException("El cupo máximo debe ser mayor a cero.");
+        }
+
+        Id = Guid.NewGuid();
+        Nombre = nombre.Trim();
         Precio = precio;
-        Beneficios = beneficios;
+        Beneficios = beneficios?.Trim() ?? string.Empty;
         CupoMaximo = cupoMaximo;
         CupoDisponible = cupoMaximo;
     }
 
-    public bool HayCupoDisponible()
+    public bool HayCupoDisponible(int cantidad = 1)
     {
-        return CupoDisponible > 0;
+        return CupoDisponible >= cantidad;
     }
 
     public void RegistrarVenta(int cantidad)
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad de entradas deben ser mayores que cero.");
+            throw new ArgumentException("La cantidad de entradas debe ser mayor que cero.");
         }
-        if (CupoDisponible - cantidad < 0)
+
+        if (CupoDisponible < cantidad)
         {
-            throw new ArgumentException("No hay suficiente cupo disponible.");
+            throw new InvalidOperationException("No hay suficiente cupo disponible.");
         }
 
         CupoDisponible -= cantidad;
     }
 
-    public void CancelarVenta(int cantidad)
+    public void RestaurarCupo(int cantidad)
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad de entradas deben ser mayores que cero.");
-        }
-        if (CupoDisponible + cantidad > CupoMaximo)
-        {
-            throw new ArgumentException("No se puede cancelar la venta, excede el cupo máximo.");
+            throw new ArgumentException("La cantidad a restaurar debe ser mayor que cero.");
         }
 
-        CupoDisponible += cantidad;
+        CupoDisponible = Math.Min(CupoMaximo, CupoDisponible + cantidad);
     }
 
     public decimal CalcularPrecio(int cantidad)
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad de entradas deben ser mayores que cero.");
+            throw new ArgumentException("La cantidad de entradas debe ser mayor que cero.");
         }
-        if (cantidad > 4)
+
+        // Si alguien compra 5 entradas o más de la misma modalidad en una sola compra,
+        // el precio total tiene un descuento del 15%
+        if (cantidad >= 5)
         {
-            return Precio * cantidad * 0.85m;
+            return Math.Round(Precio * cantidad * 0.85m, 2);
         }
+
         return Precio * cantidad;
     }
 }

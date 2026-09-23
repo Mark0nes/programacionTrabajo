@@ -1,4 +1,5 @@
 namespace GestionEventos.Data;
+
 using GestionEventos.Logica;
 using Newtonsoft.Json;
 
@@ -6,9 +7,9 @@ public class PersonaRepository
 {
     private readonly string _rutaArchivo;
 
-    public PersonaRepository(string rutaArchivo)
+    public PersonaRepository(string? rutaArchivo = null)
     {
-        _rutaArchivo = rutaArchivo;
+        _rutaArchivo = rutaArchivo ?? DataPathHelper.GetFilePath("usuarios.json");
     }
 
     public List<Usuario> ObtenerUsuarios()
@@ -22,9 +23,15 @@ public class PersonaRepository
         return JsonConvert.DeserializeObject<List<Usuario>>(json) ?? new List<Usuario>();
     }
 
-    public void GuardarPersonas(List<Usuario> usuarios)
+    public void GuardarUsuarios(List<Usuario> usuarios)
     {
+        string? dir = Path.GetDirectoryName(_rutaArchivo);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
         string json = JsonConvert.SerializeObject(usuarios, Formatting.Indented);
-        File.WriteAllText(_rutaArchivo,json);
+        File.WriteAllText(_rutaArchivo, json);
     }
 }

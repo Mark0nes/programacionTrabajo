@@ -1,77 +1,25 @@
 namespace GestionEventos.Logica;
+
 using GestionEventos.Data;
 
 public class ModalidadService
 {
-    private readonly ModalidadRepository _repository;
+    private readonly EventoRepository _eventoRepository;
 
-    public ModalidadService()
+    public ModalidadService(EventoRepository? eventoRepository = null)
     {
-        _repository = new ModalidadRepository("modalidades.json");
+        _eventoRepository = eventoRepository ?? new EventoRepository();
     }
 
-    public List<Modalidad> ObtenerTodos()
+    public List<Modalidad> ObtenerPorEvento(Guid idEvento)
     {
-        return _repository.ObtenerModa();
+        var evento = _eventoRepository.ObtenerEventos().FirstOrDefault(e => e.Id == idEvento);
+        return evento?.ObtenerModalidades() ?? new List<Modalidad>();
     }
 
-    public Evento ObtenerPorId(Guid id)
+    public Modalidad? ObtenerPorId(Guid idEvento, Guid idModalidad)
     {
-        return _repository.ObtenerEventos().FirstOrDefault(e => e.Id == id);
-    }
-
-    public List<Modalidad> ObtenerPorFecha(DateTime fecha)
-    {
-        return _repository.ObtenerEventos().Where(e => e.Fecha == fecha).ToList();
-    }
-
-    public List<Evento> ObtenerPorLugar(string lugar)
-    {
-        return _repository.ObtenerEventos().Where(e => e.Lugar == lugar).ToList();
-    }
-
-    public List<Evento> ObtenerPorModalidad(Guid idModalidad)
-    {
-        return _repository.ObtenerEventos().Where(e => e.ObtenerModalidades().Any(m => m.Id == idModalidad)).ToList();
-    }
-
-    public List<Evento> ObtenerDisponibles()
-    {
-        return _repository.ObtenerEventos().Where(e => !e.Cancelado).ToList();
-    }
-
-    public Evento Crear(string nombre, string descripcion, DateTime fecha, string lugar)
-    {
-        var eventos = _repository.ObtenerEventos();
-        
-        var nuevoEvento = new Evento(nombre,descripcion,fecha,lugar);
-        
-        eventos.Add(nuevoEvento);
-        _repository.GuardarEventos(eventos);
-        
-        return nuevoEvento;
-    }
-
-    public Evento AgregarModalidad(Modalidad modalidad, Guid idEvento)
-    {
-        var eventos = _repository.ObtenerEventos();
-        var eventoModificado = eventos.FirstOrDefault(e=>e.Id == idEvento);
-        eventoModificado.AgregarModalidad(modalidad);
-        return eventoModificado;
-    }
-
-    public Evento Cancelar(Guid idEvento)
-    {
-        var eventos = _repository.ObtenerEventos();
-        var eventoModificado = eventos.FirstOrDefault(e=>e.Id == idEvento);
-        eventoModificado.Cancelar();
-        return eventoModificado;
-    }
-
-    public bool PreguntarPorDisponibilidad(Guid idEvento)
-    {
-        var eventos = _repository.ObtenerEventos();
-        var eventoModificado = eventos.FirstOrDefault(e=>e.Id == idEvento);
-        return eventoModificado.EstaDisponible();
+        var evento = _eventoRepository.ObtenerEventos().FirstOrDefault(e => e.Id == idEvento);
+        return evento?.ObtenerModalidadPorId(idModalidad);
     }
 }

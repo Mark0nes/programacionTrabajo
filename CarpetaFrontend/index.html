@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TicketFlow — Sistema de Venta y Validación de Entradas</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Leaflet CSS & JS para Mapa Interactivo de Ubicación de Eventos (Promoción) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+  <!-- Encabezado Principal -->
+  <header>
+    <div class="header-container">
+      <div class="logo-area">
+        <div class="logo-icon">🎟️</div>
+        <div class="logo-title">
+          <h1>TicketFlow</h1>
+          <span>Venta & Validación de Entradas</span>
+        </div>
+      </div>
+
+      <!-- Selector de Usuario Activo (Sin login, basado en DNI y Rol) -->
+      <div class="user-selector-box">
+        <label for="userSelect">👤 Operando como:</label>
+        <select id="userSelect">
+          <option value="">Cargando usuarios...</option>
+        </select>
+        <span id="userRoleBadge" class="role-badge role-comprador">Comprador</span>
+      </div>
+    </div>
+
+    <!-- Navegación por Pestañas -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="catalogoView">
+        📅 Catálogo de Eventos
+      </button>
+      <button class="tab-btn" data-tab="puertaView">
+        🚪 Control de Acceso (Puerta)
+      </button>
+      <button class="tab-btn" data-tab="consultaCompraView">
+        🔎 Consultar Compra
+      </button>
+      <button class="tab-btn role-organizador-only" data-tab="organizadorView" style="display: none;">
+        ⚙️ Gestión de Eventos
+      </button>
+      <button class="tab-btn role-organizador-only" data-tab="reporteView" style="display: none;">
+        📊 Reporte de Recaudación
+      </button>
+    </nav>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main>
+
+    <!-- 1. VISTA: Catálogo de Eventos -->
+    <section id="catalogoView" class="section-view active">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Eventos Disponibles</h2>
+          <button id="btnRefrescarEventos" class="btn btn-outline">🔄 Actualizar</button>
+        </div>
+        <div id="eventsGrid" class="events-grid">
+          <p>Cargando eventos...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. VISTA: Detalle de Evento y Compra -->
+    <section id="detalleView" class="section-view">
+      <div class="card">
+        <div class="card-header">
+          <button id="btnVolverCatalogo" class="btn btn-outline">⬅ Volver al Catálogo</button>
+          <span id="detalleStatusBadge" class="badge badge-success">Disponible</span>
+        </div>
+
+        <div class="detail-layout">
+          <!-- Columna Izquierda: Info & Mapa -->
+          <div>
+            <h2 id="detalleTitulo" class="card-title" style="font-size: 1.6rem; margin-bottom: 0.5rem;">Título del Evento</h2>
+            <p id="detalleDescripcion" class="event-description" style="font-size: 1.05rem; margin-bottom: 1rem;"></p>
+
+            <div class="event-info-row" style="margin-bottom: 0.5rem;">
+              <span class="event-info-icon">📅</span>
+              <strong id="detalleFecha"></strong>
+            </div>
+
+            <div class="event-info-row" style="margin-bottom: 1rem;">
+              <span class="event-info-icon">📍</span>
+              <span id="detalleLugar"></span>
+            </div>
+
+            <!-- Mapa Interactivo (Promoción) -->
+            <h4 style="margin-top: 1rem; font-size: 0.95rem; color: var(--gray-700);">🗺️ Ubicación geográfica del evento:</h4>
+            <div id="mapContainer"></div>
+          </div>
+
+          <!-- Columna Derecha: Selección de Modalidad y Compra -->
+          <div>
+            <div id="panelCompraComprador">
+              <h3 class="card-title" style="margin-bottom: 1rem;">Comprar Entradas</h3>
+              
+              <div class="form-group">
+                <label class="form-label">Seleccionar Modalidad de Entrada:</label>
+                <select id="selectModalidad" class="form-control"></select>
+              </div>
+
+              <div id="modalidadInfoBox" class="modalities-preview" style="margin-bottom: 1rem; padding: 1rem;">
+                <div style="font-weight: 600; color: var(--dark);" id="modInfoNombre"></div>
+                <div style="color: var(--gray-500); font-size: 0.9rem;" id="modInfoBeneficios"></div>
+                <div style="margin-top: 0.5rem; display: flex; justify-content: space-between;">
+                  <span>Cupo disponible: <strong id="modInfoCupo"></strong></span>
+                  <span>Precio unitario: <strong id="modInfoPrecio"></strong></span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Cantidad de Entradas:</label>
+                <input type="number" id="inputCantidad" class="form-control" value="1" min="1" max="50">
+              </div>
+
+              <!-- Banner de Descuento por Volumen (Regla de negocio: 5 o más entradas = 15% de descuento) -->
+              <div id="discountBanner" class="discount-banner" style="display: none;">
+                🎉 <strong>¡Descuento del 15% aplicado!</strong> Por comprar 5 o más entradas de esta modalidad.
+              </div>
+
+              <!-- Desglose de Precios -->
+              <div class="price-breakdown">
+                <div class="price-row">
+                  <span>Precio regular:</span>
+                  <span id="resumenSubtotal">$0</span>
+                </div>
+                <div class="price-row" id="filaDescuento" style="display: none; color: #b45309;">
+                  <span>Descuento (15%):</span>
+                  <span id="resumenDescuento">-$0</span>
+                </div>
+                <div class="price-row price-total">
+                  <span>Total a pagar:</span>
+                  <span id="resumenTotal">$0</span>
+                </div>
+              </div>
+
+              <button id="btnConfirmarCompra" class="btn btn-primary btn-block btn-lg">
+                💳 Confirmar Compra
+              </button>
+            </div>
+
+            <!-- Mensaje alternativo si el usuario es Organizador -->
+            <div id="panelCompraOrganizadorAviso" style="display: none;" class="card">
+              <div style="text-align: center; padding: 1.5rem;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">ℹ️</div>
+                <h3>Modo Organizador</h3>
+                <p style="color: var(--gray-500); margin-top: 0.5rem;">
+                  Has seleccionado un usuario con rol <strong>Organizador</strong>. Las compras son exclusivas para usuarios con rol <strong>Comprador</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. VISTA: Control de Acceso (Puerta) -->
+    <section id="puertaView" class="section-view">
+      <div class="card door-control-box">
+        <h2 class="card-title" style="margin-bottom: 0.5rem;">🚪 Control de Acceso en Puerta</h2>
+        <p style="color: var(--gray-500); margin-bottom: 1.5rem;">
+          Ingrese el código alfanumérico de 6 dígitos de la entrada para verificar y autorizar el ingreso al evento.
+        </p>
+
+        <div class="form-group" style="text-align: left;">
+          <label class="form-label">Evento en puerta (opcional para filtro estricto):</label>
+          <select id="puertaEventoSelect" class="form-control">
+            <option value="">-- Todos los eventos / Sin filtro de evento --</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" style="font-size: 1rem;">Código de Entrada (6 caracteres):</label>
+          <input type="text" id="doorTicketInput" class="ticket-input-large" maxlength="6" placeholder="EJ: 9X4K2A" autocomplete="off">
+        </div>
+
+        <button id="btnValidarEntrada" class="btn btn-primary btn-block btn-lg" style="font-size: 1.15rem;">
+          🔍 Validar Ingreso
+        </button>
+
+        <!-- Cartel de Resultado Visual Gigante (Verde o Rojo) -->
+        <div id="validationResultCard" style="display: none;"></div>
+
+        <!-- Historial reciente de ingresos de la sesión -->
+        <div style="margin-top: 2rem; text-align: left;">
+          <h4 style="font-size: 0.95rem; color: var(--gray-700); margin-bottom: 0.5rem;">Historial reciente de validaciones:</h4>
+          <div class="table-responsive">
+            <table class="styled-table" id="tablaHistorialValidaciones">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Código</th>
+                  <th>Evento / Modalidad</th>
+                  <th>Resultado</th>
+                </tr>
+              </thead>
+              <tbody id="historialValidacionesBody">
+                <tr><td colspan="4" style="text-align:center; color: var(--gray-500);">Aún no se realizaron validaciones en esta sesión.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. VISTA: Consulta de Compra y Estado de Entradas -->
+    <section id="consultaCompraView" class="section-view">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Consultar Detalle de una Compra</h2>
+        </div>
+
+        <div style="max-width: 650px; margin-bottom: 1.5rem;">
+          <label class="form-label">Ingrese el ID de la Compra (UUID):</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="inputBuscarCompraId" class="form-control" placeholder="Ej: 3fa85f64-5717-4562-b3fc-2c963f66afa6">
+            <button id="btnBuscarCompra" class="btn btn-primary">Buscar</button>
+          </div>
+        </div>
+
+        <!-- Botones rápidos de compras del usuario activo -->
+        <div id="misComprasContenedor" style="margin-bottom: 1.5rem;">
+          <h4 style="font-size: 0.9rem; color: var(--gray-500); margin-bottom: 0.5rem;">Compras registradas para el usuario activo:</h4>
+          <div id="misComprasBotones" style="display: flex; flex-wrap: wrap; gap: 0.5rem;"></div>
+        </div>
+
+        <!-- Resultado del Detalle de Compra -->
+        <div id="detalleCompraResultado" style="display: none;">
+          <div class="card" style="background: var(--gray-50); border: 1px solid var(--gray-200);">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div>
+                <span class="event-description">ID de Compra:</span>
+                <strong id="compraInfoId" style="word-break: break-all; font-size: 0.85rem; display:block;"></strong>
+              </div>
+              <div>
+                <span class="event-description">Evento:</span>
+                <strong id="compraInfoEvento" style="display:block;"></strong>
+              </div>
+              <div>
+                <span class="event-description">Modalidad / Cantidad:</span>
+                <strong id="compraInfoModalidad" style="display:block;"></strong>
+              </div>
+              <div>
+                <span class="event-description">Total Abonado:</span>
+                <strong id="compraInfoTotal" style="color: var(--primary); font-size: 1.1rem; display:block;"></strong>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="card-title" style="margin: 1.5rem 0 0.5rem;">Entradas Generadas (Validación Individual)</h3>
+          <p style="color: var(--gray-500); font-size: 0.9rem; margin-bottom: 1rem;">
+            Cada entrada es individual y se valida por separado en la puerta. Los compradores pueden cancelar entradas individuales que no hayan sido usadas (Promoción).
+          </p>
+
+          <div class="table-responsive">
+            <table class="styled-table">
+              <thead>
+                <tr>
+                  <th>Código de Entrada</th>
+                  <th>Modalidad</th>
+                  <th>Precio Unitario</th>
+                  <th>Estado en Puerta</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="entradasCompraTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. VISTA: Gestión de Eventos (Organizador) -->
+    <section id="organizadorView" class="section-view">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">⚙️ Panel de Gestión de Eventos (Organizador)</h2>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <!-- Formulario: Crear Evento -->
+          <div>
+            <h3 style="font-size: 1.15rem; margin-bottom: 1rem; color: var(--primary);">➕ Crear Nuevo Evento</h3>
+            <form id="formCrearEvento">
+              <div class="form-group">
+                <label class="form-label">Nombre del Evento:</label>
+                <input type="text" id="nuevoEventoNombre" class="form-control" required placeholder="Ej: Recital Acústico">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Descripción:</label>
+                <textarea id="nuevoEventoDescripcion" class="form-control" rows="2" placeholder="Detalle del evento"></textarea>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Fecha y Hora:</label>
+                  <input type="datetime-local" id="nuevoEventoFecha" class="form-control" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Lugar / Dirección:</label>
+                  <input type="text" id="nuevoEventoLugar" class="form-control" required placeholder="Ej: Teatro Opera">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Latitud (Mapa):</label>
+                  <input type="number" step="0.0001" id="nuevoEventoLatitud" class="form-control" placeholder="-34.6037" value="-34.6037">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Longitud (Mapa):</label>
+                  <input type="number" step="0.0001" id="nuevoEventoLongitud" class="form-control" placeholder="-58.3816" value="-58.3816">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-success btn-block">Guardar Nuevo Evento</button>
+            </form>
+          </div>
+
+          <!-- Formulario: Agregar Modalidad -->
+          <div>
+            <h3 style="font-size: 1.15rem; margin-bottom: 1rem; color: var(--primary);">🎫 Agregar Modalidad a Evento</h3>
+            <form id="formAgregarModalidad">
+              <div class="form-group">
+                <label class="form-label">Seleccionar Evento:</label>
+                <select id="modalidadEventoSelect" class="form-control" required></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Nombre de Modalidad:</label>
+                <input type="text" id="nuevaModalidadNombre" class="form-control" required placeholder="Ej: Platea VIP">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Precio ($):</label>
+                  <input type="number" step="0.01" id="nuevaModalidadPrecio" class="form-control" required placeholder="10000">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Cupo Máximo:</label>
+                  <input type="number" id="nuevaModalidadCupo" class="form-control" required placeholder="50">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Beneficios incluidos:</label>
+                <input type="text" id="nuevaModalidadBeneficios" class="form-control" placeholder="Ej: Acceso prioritario, consumición">
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Agregar Modalidad</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. VISTA: Reporte de Recaudación (Organizador) -->
+    <section id="reporteView" class="section-view">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">📊 Reporte de Recaudación y Entradas Vendidas</h2>
+          <button id="btnRefrescarReporte" class="btn btn-outline">🔄 Actualizar Reporte</button>
+        </div>
+
+        <!-- Indicadores KPI -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Recaudación Total General</div>
+            <div class="stat-value" id="kpiRecaudacionTotal">$0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Entradas Totales Vendidas</div>
+            <div class="stat-value" id="kpiEntradasVendidas">0</div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="styled-table" id="tablaReporteEventos">
+            <thead>
+              <tr>
+                <th>Evento</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Entradas Vendidas</th>
+                <th>Recaudación Total</th>
+                <th>Detalle por Modalidad</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="reporteTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal de Éxito de Compra -->
+  <div id="modalCompraExitosa" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: var(--success);">🎉 ¡Compra Realizada con Éxito!</h3>
+        <button id="btnCerrarModalCompra" class="modal-close">&times;</button>
+      </div>
+      <div>
+        <p style="margin-bottom: 1rem;">
+          Se ha registrado tu compra y se han generado tus <strong>entradas individuales con código alfanumérico único</strong>:
+        </p>
+
+        <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+          <div style="font-size: 0.9rem;"><strong>ID de Compra:</strong> <span id="modalCompraId" style="font-family: monospace;"></span></div>
+          <div style="font-size: 0.9rem; margin-top: 0.35rem;"><strong>Total Abonado:</strong> <span id="modalCompraTotal" style="color: var(--primary); font-weight:700;"></span></div>
+        </div>
+
+        <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem;">Códigos de tus entradas (conservar para ingresar en la puerta):</h4>
+        <div id="modalCodigosEntradas" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem;"></div>
+
+        <div style="display: flex; gap: 0.5rem;">
+          <button id="btnIrAConsultaCompra" class="btn btn-primary btn-block">Ver Detalle de la Compra</button>
+          <button id="btnCerrarModal" class="btn btn-outline">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script Principal de la Aplicación Frontend -->
+  <script src="app.js"></script>
+</body>
+</html>

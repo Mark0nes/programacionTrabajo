@@ -1,32 +1,46 @@
-﻿namespace GestionEventos.Logica;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
+namespace GestionEventos.Logica;
 
 public class Usuario
 {
-    public string Dni { get; private set; }
-    public string Nombre { get; private set; }
-    public string Username { get; private set; }
-    public RolUsuario Rol { get; private set; }
+    private string _dni = string.Empty;
+
+    [JsonProperty("dni")]
+    public object DniRaw
+    {
+        get => _dni;
+        set => _dni = value?.ToString()?.Trim() ?? string.Empty;
+    }
+
+    [JsonIgnore]
+    public string Dni
+    {
+        get => _dni;
+        set => _dni = value?.Trim() ?? string.Empty;
+    }
+
+    public string Nombre { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+
+    [JsonConverter(typeof(StringEnumConverter))]
+    public RolUsuario Rol { get; set; }
+
+    public Usuario()
+    {
+    }
 
     public Usuario(string dni, string nombre, string username, RolUsuario rol)
     {
-        if (string.IsNullOrWhiteSpace(dni) || (dni.Length != 8))
+        if (string.IsNullOrWhiteSpace(dni))
         {
-            throw new ArgumentException("El formato del dni es incorrecto");
+            throw new ArgumentException("El DNI no puede estar vacío.");
         }
 
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            throw new ArgumentException("El nombre no puede estar vacío o contener espacios en blanco");
-        }
-
-        if (string.IsNullOrWhiteSpace(username) && (username.Length < 6 || username.Length > 20))
-        {
-            throw new ArgumentException("El username no puede estar vacío o contener espacios en blanco, además debe contener entre 6 y 20 caracteres");
-        }
-
-        if (rol != RolUsuario.Organizador && rol != RolUsuario.Comprador)
-        {
-            throw new ArgumentException("El rol no existe, debe ser 'Organizador' o 'Comprador'");
+            throw new ArgumentException("El nombre no puede estar vacío.");
         }
 
         Dni = dni;
@@ -35,19 +49,13 @@ public class Usuario
         Rol = rol;
     }
 
-    public void EsOrganizador()
+    public bool EsOrganizador()
     {
-        if (Rol != RolUsuario.Organizador)
-        {
-            throw new ArgumentException("El usuario no es un organizador.");
-        }
+        return Rol == RolUsuario.Organizador;
     }
 
-    public void EsComprador()
+    public bool EsComprador()
     {
-        if (Rol != RolUsuario.Comprador)
-        {
-            throw new ArgumentException("El usuario no es un comprador.");
-        }
+        return Rol == RolUsuario.Comprador;
     }
 }

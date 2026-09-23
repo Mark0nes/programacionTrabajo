@@ -1,6 +1,1 @@
-﻿namespace Clases;
-
-public class Class1
-{
-
-}
+// Reemplazado por clases de validación

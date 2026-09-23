@@ -2,51 +2,50 @@ namespace GestionEventos.Logica;
 
 public class Compra
 {
-    public Guid Id { get; private set; }
-    public string DniComprador { get; private set; }
-    public DateTime FechaCompra { get; private set; }
-    private List<Entrada> Entradas = new List<Entrada>();
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string DniComprador { get; set; } = string.Empty;
+    public DateTime FechaCompra { get; set; } = DateTime.Now;
+    public Guid IdEvento { get; set; }
+    public string NombreEvento { get; set; } = string.Empty;
+    public Guid IdModalidad { get; set; }
+    public string NombreModalidad { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
+    public decimal PrecioUnitario { get; set; }
+    public decimal Total { get; set; }
+    public List<Entrada> Entradas { get; set; } = new List<Entrada>();
 
-    public Compra(string dniComprador, DateTime fechaCompra, int cantidad)
+    public Compra()
     {
-        Id = Guid.NewGuid();
+    }
 
-        if (string.IsNullOrWhiteSpace(dniComprador) || (dniComprador.Length != 8))
+    public Compra(string dniComprador, Guid idEvento, string nombreEvento, Guid idModalidad, string nombreModalidad, int cantidad, decimal precioUnitario, decimal total)
+    {
+        if (string.IsNullOrWhiteSpace(dniComprador))
         {
-            throw new ArgumentException("El formato del dni es incorrecto");
+            throw new ArgumentException("El DNI del comprador es obligatorio.");
         }
 
-        DniComprador = dniComprador;
-        FechaCompra = fechaCompra;
+        if (cantidad <= 0)
+        {
+            throw new ArgumentException("La cantidad debe ser mayor a cero.");
+        }
+
+        Id = Guid.NewGuid();
+        DniComprador = dniComprador.Trim();
+        FechaCompra = DateTime.Now;
+        IdEvento = idEvento;
+        NombreEvento = nombreEvento;
+        IdModalidad = idModalidad;
+        NombreModalidad = nombreModalidad;
+        Cantidad = cantidad;
+        PrecioUnitario = precioUnitario;
+        Total = total;
+        Entradas = new List<Entrada>();
     }
 
     public void AgregarEntrada(Entrada entrada)
     {
+        Entradas ??= new List<Entrada>();
         Entradas.Add(entrada);
-    }
-
-    public List<Entrada> ObtenerEntradas()
-    {
-        return Entradas;
-    }
-
-    public Modalidad? ObtenerModalidadDeCompra()
-    {
-        return  Entradas[0].ModalidadEntrada;
-    }
-
-    public Evento? ObtenerEventoDeCompra()
-    {
-        return  Entradas[0].EventoEntrada;
-    }
-
-    public Entrada ObtenerEntradaPorId(Guid id)
-    {
-        return Entradas.First(v => v.EventoEntrada.Id == id);
-    }
-
-    public decimal CalcularTotal()
-    {
-        return Entradas.Sum(e => e.CalcularPrecio());
     }
 }

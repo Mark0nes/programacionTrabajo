@@ -1,64 +1,68 @@
-using Newtonsoft.Json.Converters;
-
 namespace GestionEventos.Logica;
 
 public class Evento
 {
-    public Guid Id { get; private set; }
-    public string Nombre { get; private set; }
-    public string Descripcion { get; private set; }
-    public DateTime Fecha { get; private set; }
-    public string Lugar { get; private set; }
-    public bool Cancelado { get; private set; }
-    private List<Modalidad> Modalidades = new List<Modalidad>();
-    public Evento(string nombre, string descripcion, DateTime fecha, string lugar)
-    {
-        Id = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Nombre { get; set; } = string.Empty;
+    public string Descripcion { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+    public string Lugar { get; set; } = string.Empty;
+    public double? Latitud { get; set; }
+    public double? Longitud { get; set; }
+    public bool Cancelado { get; set; }
+    public List<Modalidad> Modalidades { get; set; } = new List<Modalidad>();
 
+    public Evento()
+    {
+    }
+
+    public Evento(string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
+    {
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            throw new ArgumentException("El nombre del evento no puede estar vacío o contener espacios en blanco");
-        }
-
-        if (fecha < DateTime.Now)
-        {
-            throw new ArgumentException("La fecha del evento no puede ser de un día que ya pasó");
+            throw new ArgumentException("El nombre del evento no puede estar vacío.");
         }
 
         if (string.IsNullOrWhiteSpace(lugar))
         {
-            throw new ArgumentException("El lugar del evento no puede estar vacío o contener espacios en blanco");
+            throw new ArgumentException("El lugar del evento no puede estar vacío.");
         }
 
-        Nombre = nombre;
-        Descripcion = descripcion;
+        Id = Guid.NewGuid();
+        Nombre = nombre.Trim();
+        Descripcion = descripcion?.Trim() ?? string.Empty;
         Fecha = fecha;
-        Lugar = lugar;
+        Lugar = lugar.Trim();
+        Latitud = latitud;
+        Longitud = longitud;
         Cancelado = false;
+        Modalidades = new List<Modalidad>();
     }
 
     public void AgregarModalidad(Modalidad modalidad)
     {
-        if (Modalidades == null)
+        if (modalidad == null)
         {
-            Modalidades = new List<Modalidad>();
+            throw new ArgumentNullException(nameof(modalidad), "La modalidad no puede ser nula.");
         }
+
+        Modalidades ??= new List<Modalidad>();
         Modalidades.Add(modalidad);
     }
 
-    public void EliminarrModalidad(Modalidad modalidad)
+    public void EliminarModalidad(Guid idModalidad)
     {
-        Modalidades.Remove(modalidad);
+        Modalidades?.RemoveAll(m => m.Id == idModalidad);
     }
 
     public List<Modalidad> ObtenerModalidades()
     {
-        return Modalidades;
+        return Modalidades ?? new List<Modalidad>();
     }
 
-    public Modalidad ObtenerModalidadPorId(Guid id)
+    public Modalidad? ObtenerModalidadPorId(Guid id)
     {
-        return Modalidades.First(v => v.Id == id);
+        return Modalidades?.FirstOrDefault(m => m.Id == id);
     }
 
     public void Cancelar()
@@ -68,6 +72,6 @@ public class Evento
 
     public bool EstaDisponible()
     {
-        return !Cancelado;
+        return !Cancelado && Fecha >= DateTime.Now;
     }
 }
