@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // =========================================================================
-// 1. Navegación por pestañas
+// 1. Navegación por pestañas y control de permisos
 // =========================================================================
 function setupNavigation() {
   const tabs = document.querySelectorAll(".tab-btn");
@@ -42,6 +42,12 @@ function setupNavigation() {
 }
 
 function mostrarPestaña(targetId) {
+  // Regla de seguridad: Vistas administrativas exclusivas para Organizadores / Administradores
+  const vistasExclusivasOrganizador = ["puertaView", "organizadorView", "reporteView"];
+  if (vistasExclusivasOrganizador.includes(targetId) && state.usuarioActivo?.rol !== "Organizador") {
+    targetId = "catalogoView";
+  }
+
   document.querySelectorAll(".tab-btn").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".section-view").forEach(s => s.classList.remove("active"));
 
@@ -70,10 +76,10 @@ async function cargarUsuarios() {
     const select = document.getElementById("userSelect");
     select.innerHTML = "";
 
-    state.usuarios.forEach((u, idx) => {
+    state.usuarios.forEach((u) => {
       const opt = document.createElement("option");
       opt.value = u.dni;
-      opt.textContent = `${u.nombre} (${u.rol}) - DNI: ${u.dni}`;
+      opt.textContent = `${u.nombre} (${u.rol}) — DNI: ${u.dni}`;
       select.appendChild(opt);
     });
 
@@ -95,7 +101,7 @@ async function cargarUsuarios() {
 
   } catch (err) {
     console.error("Error al cargar usuarios:", err);
-    document.getElementById("userSelect").innerHTML = "<option>Error al conectar con ApiGestion (puerto 5001)</option>";
+    document.getElementById("userSelect").innerHTML = "<option>Error al conectar con ApiGestion (:5001)</option>";
   }
 }
 
@@ -114,7 +120,7 @@ function seleccionarUsuario(usuario) {
   const panelOrganizadorAviso = document.getElementById("panelCompraOrganizadorAviso");
 
   if (usuario.rol === "Organizador") {
-    organizadorElements.forEach(el => el.style.display = "flex");
+    organizadorElements.forEach(el => el.style.display = "inline-flex");
     if (panelCompra) panelCompra.style.display = "none";
     if (panelOrganizadorAviso) panelOrganizadorAviso.style.display = "block";
   } else {
@@ -122,14 +128,31 @@ function seleccionarUsuario(usuario) {
     if (panelCompra) panelCompra.style.display = "block";
     if (panelOrganizadorAviso) panelOrganizadorAviso.style.display = "none";
 
-    // Si estaba en pestaña de organizador, volver al catálogo
+    // Si el usuario estaba en una pestaña restringida (Puerta, Gestión o Reporte), redirigir al catálogo
     const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab;
-    if (activeTab === "organizadorView" || activeTab === "reporteView") {
+    if (activeTab === "organizadorView" || activeTab === "reporteView" || activeTab === "puertaView") {
       mostrarPestaña("catalogoView");
     }
   }
 
+  // Aislamiento de seguridad: limpiar de pantalla las compras y entradas de la cuenta anterior
+  limpiarVistaDetalleCompra();
+
+  // Actualizar compras rápidas del nuevo usuario activo
   actualizarMisComprasRapidas();
+
+  // Actualizar botones del catálogo para reflejar textos según el rol actual
+  renderizarCatalogo();
+}
+
+function limpiarVistaDetalleCompra() {
+  const detalleResultado = document.getElementById("detalleCompraResultado");
+  if (detalleResultado) detalleResultado.style.display = "none";
+
+  const inputBuscar = document.getElementById("inputBuscarCompraId");
+  if (inputBuscar) inputBuscar.value = "";
+
+  state.compraActual = null;
 }
 
 // =========================================================================
@@ -137,7 +160,7 @@ function seleccionarUsuario(usuario) {
 // =========================================================================
 async function cargarEventos() {
   const container = document.getElementById("eventsGrid");
-  container.innerHTML = "<p>Cargando eventos desde la API...</p>";
+  container.innerHTML = "<p class='loading-state'>Cargando eventos...</p>";
 
   try {
     const res = await fetch(`${API_GESTION}/eventos`);
@@ -150,7 +173,7 @@ async function cargarEventos() {
     console.error("Error al cargar eventos:", err);
     container.innerHTML = `
       <div style="grid-column: 1/-1; padding: 2rem; text-align: center; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px;">
-        <h3 style="color: #be123c;">⚠️ No se pudo conectar con ApiGestion</h3>
+        <h3 style="color: #be123c;">No se pudo conectar con ApiGestion</h3>
         <p style="color: #4b5563; margin-top: 0.5rem;">Asegúrese de que ApiGestion esté ejecutándose en <strong>http://localhost:5001</strong>.</p>
         <button onclick="cargarEventos()" class="btn btn-outline" style="margin-top: 1rem;">Reintentar</button>
       </div>`;
@@ -162,7 +185,7 @@ function renderizarCatalogo() {
   container.innerHTML = "";
 
   if (state.eventos.length === 0) {
-    container.innerHTML = "<p>No hay eventos disponibles en este momento.</p>";
+    container.innerHTML = "<p class='text-muted'>No hay eventos disponibles en este momento.</p>";
     return;
   }
 
@@ -186,7 +209,7 @@ function renderizarCatalogo() {
     if (ev.modalidades && ev.modalidades.length > 0) {
       modalidadesHtml = `
         <div class="modalities-preview">
-          <h5>Modalidades disponibles:</h5>
+          <div class="modalities-preview-title">Modalidades disponibles</div>
           ${ev.modalidades.map(m => `
             <div class="modality-tag">
               <span>${m.nombre} (Cupo: ${m.cupoDisponible})</span>
@@ -196,23 +219,35 @@ function renderizarCatalogo() {
         </div>
       `;
     } else {
-      modalidadesHtml = `<p style="font-size: 0.85rem; color: var(--gray-500); font-style: italic;">Sin modalidades cargadas aún.</p>`;
+      modalidadesHtml = `<p style="font-size: 0.825rem; color: var(--slate-500); font-style: italic;">Sin modalidades cargadas aún.</p>`;
     }
 
     card.innerHTML = `
       <div class="event-card-header">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem;">
+        <div class="event-card-top-row">
           <h3 class="event-card-title">${ev.nombre}</h3>
           ${statusBadge}
         </div>
         <div class="event-info-row">
-          <span class="event-info-icon">📅</span>
+          <span class="event-info-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </span>
           <span>${fechaFormat}</span>
         </div>
       </div>
       <div class="event-card-body">
         <div class="event-info-row">
-          <span class="event-info-icon">📍</span>
+          <span class="event-info-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          </span>
           <span>${ev.lugar}</span>
         </div>
         <p class="event-description">${ev.descripcion || "Sin descripción adicional."}</p>
@@ -220,7 +255,7 @@ function renderizarCatalogo() {
       </div>
       <div class="event-card-footer">
         <button class="btn btn-primary btn-block btn-ver-detalle" data-id="${ev.id}">
-          ${state.usuarioActivo?.rol === "Comprador" ? "🎟️ Ver Detalle y Comprar" : "🔍 Ver Detalle"}
+          ${state.usuarioActivo?.rol === "Comprador" ? "Comprar Entradas" : "Ver Detalle"}
         </button>
       </div>
     `;
@@ -234,7 +269,7 @@ function renderizarCatalogo() {
 }
 
 // =========================================================================
-// 4. Detalle de Evento, Mapa Interactivo (Promoción) y Compra
+// 4. Detalle de Evento, Mapa Interactivo y Compra
 // =========================================================================
 function abrirDetalleEvento(eventoId) {
   const evento = state.eventos.find(e => e.id === eventoId);
@@ -280,7 +315,7 @@ function abrirDetalleEvento(eventoId) {
     document.getElementById("modalidadInfoBox").style.display = "none";
   }
 
-  // Inicializar o centrar Mapa Interactivo Leaflet (Promoción)
+  // Inicializar o centrar Mapa Interactivo Leaflet con CARTO Voyager (evita 403 de OpenStreetMap)
   renderizarMapa(evento.latitud, evento.longitud, evento.nombre, evento.lugar);
 
   // Resetear cantidad y calcular precio
@@ -304,8 +339,12 @@ function renderizarMapa(lat, lng, titulo, lugar) {
 
     if (!state.leafletMap) {
       state.leafletMap = L.map('mapContainer').setView([finalLat, finalLng], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+
+      // Usar CARTO Voyager: infraestructura CDN confiable que no bloquea IPs compartidas (universidades)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
       }).addTo(state.leafletMap);
     } else {
       state.leafletMap.invalidateSize();
@@ -430,7 +469,7 @@ async function procesarCompra() {
     alert(`Error en la compra: ${err.message}`);
   } finally {
     btnConfirmar.disabled = false;
-    btnConfirmar.textContent = "💳 Confirmar Compra";
+    btnConfirmar.textContent = "Confirmar Compra";
   }
 }
 
@@ -451,13 +490,19 @@ function mostrarModalCompraExitosa(compra) {
   });
 
   document.getElementById("modalCompraExitosa").classList.add("active");
-  guardarCompraLocal(compra.id);
+  actualizarMisComprasRapidas();
 }
 
 // =========================================================================
-// 5. Control de Acceso en Puerta (Consume ApiValidacion puerto 5002)
+// 5. Control de Acceso en Puerta (Exclusivo Organizadores / Administradores)
 // =========================================================================
 async function validarEntradaEnPuerta() {
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Acceso denegado: El control de acceso en puerta es exclusivo para usuarios con rol Organizador / Administrador.");
+    mostrarPestaña("catalogoView");
+    return;
+  }
+
   const input = document.getElementById("doorTicketInput");
   const codigo = input.value.trim().toUpperCase();
   const selectEvento = document.getElementById("puertaEventoSelect");
@@ -471,7 +516,7 @@ async function validarEntradaEnPuerta() {
 
   const btn = document.getElementById("btnValidarEntrada");
   btn.disabled = true;
-  btn.textContent = "Validando...";
+  btn.textContent = "Validando código...";
 
   try {
     const payload = {
@@ -499,7 +544,7 @@ async function validarEntradaEnPuerta() {
     });
   } finally {
     btn.disabled = false;
-    btn.textContent = "🔍 Validar Ingreso";
+    btn.textContent = "Validar Ingreso";
   }
 }
 
@@ -510,24 +555,53 @@ function mostrarResultadoValidacion(res) {
   if (res.exitoso) {
     card.className = "validation-result-card result-success";
     card.innerHTML = `
-      <div class="result-icon">✅</div>
-      <div class="result-title">INGRESO AUTORIZADO</div>
-      <div class="result-details">
-        <p><strong>Código:</strong> <span class="ticket-code-tag" style="background:#a7f3d0; color:#065f46;">${res.codigo}</span></p>
-        <p><strong>Evento:</strong> ${res.nombreEvento || "Evento"}</p>
-        <p><strong>Modalidad:</strong> ${res.nombreModalidad || "General"}</p>
-        <p style="margin-top: 0.5rem; font-size: 0.9rem;">${res.mensaje}</p>
+      <div class="result-badge-indicator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+        Ingreso Autorizado
+      </div>
+      <div class="result-title">Entrada Válida</div>
+      <div class="result-details-grid">
+        <div class="result-detail-item">
+          <strong>Código</strong>
+          <span class="ticket-code-tag">${res.codigo}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Evento</strong>
+          <span>${res.nombreEvento || "Evento"}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Modalidad</strong>
+          <span>${res.nombreModalidad || "General"}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Estado</strong>
+          <span>${res.mensaje}</span>
+        </div>
       </div>
     `;
   } else {
     card.className = "validation-result-card result-danger";
     card.innerHTML = `
-      <div class="result-icon">⛔</div>
-      <div class="result-title">ACCESO DENEGADO</div>
-      <div class="result-details">
-        <p><strong>Código:</strong> <span class="ticket-code-tag" style="background:#fecaca; color:#991b1b;">${res.codigo || "-"}</span></p>
-        <p style="margin-top: 0.5rem; font-weight: 600;">Motivo del rechazo:</p>
-        <p style="font-size: 1.1rem; margin-top: 0.25rem;">${res.mensaje}</p>
+      <div class="result-badge-indicator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        Acceso Denegado
+      </div>
+      <div class="result-title">Entrada Rechazada</div>
+      <div class="result-details-grid">
+        <div class="result-detail-item">
+          <strong>Código presentado</strong>
+          <span class="ticket-code-tag">${res.codigo || "-"}</span>
+        </div>
+        <div class="result-detail-item" style="grid-column: 1 / -1;">
+          <strong>Motivo del rechazo</strong>
+          <span style="font-weight: 600;">${res.mensaje}</span>
+        </div>
       </div>
     `;
   }
@@ -551,11 +625,11 @@ function registrarHistorialValidacion(res) {
   tbody.innerHTML = state.historialValidaciones.map(item => `
     <tr>
       <td>${item.hora}</td>
-      <td><span class="ticket-code-tag" style="font-size: 0.9rem;">${item.codigo}</span></td>
+      <td><span class="ticket-code-tag">${item.codigo}</span></td>
       <td>${item.evento}</td>
       <td>
         <span class="badge ${item.exitoso ? 'badge-success' : 'badge-danger'}">
-          ${item.exitoso ? 'AUTORIZADO' : 'RECHAZADO'}
+          ${item.exitoso ? 'Autorizado' : 'Rechazado'}
         </span>
       </td>
     </tr>
@@ -563,12 +637,12 @@ function registrarHistorialValidacion(res) {
 }
 
 // =========================================================================
-// 6. Consulta de Compra y Estado de Entradas (Promoción: Cancelación)
+// 6. Consulta de Compra y Aislamiento de Entradas por Usuario
 // =========================================================================
 async function buscarCompra(compraId) {
   const id = compraId || document.getElementById("inputBuscarCompraId").value.trim();
   if (!id) {
-    alert("Por favor ingrese o seleccione un ID de compra.");
+    alert("Por favor ingrese o seleccione un identificador de compra.");
     return;
   }
 
@@ -580,6 +654,14 @@ async function buscarCompra(compraId) {
     }
 
     const compra = await res.json();
+
+    // Aislamiento de datos: Si el usuario activo es Comprador, solo puede ver sus propias compras
+    if (state.usuarioActivo?.rol === "Comprador" && compra.dniComprador.toString() !== state.usuarioActivo.dni.toString()) {
+      limpiarVistaDetalleCompra();
+      alert("Acceso denegado: Esta compra no pertenece al usuario activo.");
+      return;
+    }
+
     renderizarDetalleCompra(compra);
 
   } catch (err) {
@@ -618,7 +700,7 @@ function renderizarDetalleCompra(compra) {
     if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada) {
       btnCancelarHtml = `
         <button class="btn btn-danger btn-sm btn-cancelar-entrada" data-codigo="${entrada.codigo}">
-          🚫 Cancelar Entrada
+          Cancelar Entrada
         </button>
       `;
     }
@@ -640,7 +722,7 @@ function renderizarDetalleCompra(compra) {
   });
 }
 
-// Endpoint de Promoción: DELETE /api/entradas/{codigo}
+// Endpoint de Cancelación: DELETE /api/entradas/{codigo}
 async function cancelarEntradaComprada(codigo, compraId) {
   if (!confirm(`¿Está seguro de cancelar la entrada con código ${codigo}?\nEl cupo se restablecerá y la entrada ya no podrá ser utilizada.`)) {
     return;
@@ -668,35 +750,50 @@ async function cancelarEntradaComprada(codigo, compraId) {
   }
 }
 
-function guardarCompraLocal(compraId) {
-  let compras = JSON.parse(localStorage.getItem("ticketflow_mis_compras") || "[]");
-  if (!compras.includes(compraId)) {
-    compras.unshift(compraId);
-    localStorage.setItem("ticketflow_mis_compras", JSON.stringify(compras));
-  }
-  actualizarMisComprasRapidas();
-}
-
-function actualizarMisComprasRapidas() {
+// Carga las compras reales y exclusivas del usuario activo consultando a ApiGestion
+async function actualizarMisComprasRapidas() {
   const cont = document.getElementById("misComprasBotones");
   if (!cont) return;
 
-  const compras = JSON.parse(localStorage.getItem("ticketflow_mis_compras") || "[]");
   cont.innerHTML = "";
 
-  if (compras.length === 0) {
-    cont.innerHTML = "<span style='font-size: 0.85rem; color: var(--gray-500);'>No hay compras registradas en este navegador todavía.</span>";
+  if (!state.usuarioActivo) {
+    cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>Seleccione un usuario activo.</span>";
     return;
   }
 
-  compras.slice(0, 5).forEach(id => {
-    const btn = document.createElement("button");
-    btn.className = "btn btn-outline btn-sm";
-    btn.style.fontFamily = "monospace";
-    btn.textContent = `📋 ${id.substring(0, 8)}...`;
-    btn.addEventListener("click", () => buscarCompra(id));
-    cont.appendChild(btn);
-  });
+  if (state.usuarioActivo.rol !== "Comprador") {
+    cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>El historial de compras es exclusivo para cuentas con rol Comprador.</span>";
+    return;
+  }
+
+  cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>Cargando compras del usuario...</span>";
+
+  try {
+    const res = await fetch(`${API_GESTION}/compras?dni=${state.usuarioActivo.dni}`);
+    if (!res.ok) throw new Error("Error al obtener compras.");
+    const comprasUsuario = await res.json();
+
+    cont.innerHTML = "";
+
+    if (!comprasUsuario || comprasUsuario.length === 0) {
+      cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>No tienes compras registradas con este usuario todavía.</span>";
+      return;
+    }
+
+    comprasUsuario.slice(0, 8).forEach(compra => {
+      const btn = document.createElement("button");
+      btn.className = "btn btn-outline btn-sm font-mono";
+      btn.textContent = `${compra.id.substring(0, 8)}... (${compra.nombreEvento})`;
+      btn.title = `ID: ${compra.id} — ${compra.nombreEvento} (${compra.cantidad} entradas)`;
+      btn.addEventListener("click", () => buscarCompra(compra.id));
+      cont.appendChild(btn);
+    });
+
+  } catch (err) {
+    console.error("Error al consultar compras del usuario:", err);
+    cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>No se pudieron cargar las compras del usuario activo.</span>";
+  }
 }
 
 // =========================================================================
@@ -739,7 +836,7 @@ async function crearNuevoEvento(e) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "No se pudo crear el evento.");
 
-    alert(`¡Evento '${data.nombre}' creado exitosamente!`);
+    alert(`Evento '${data.nombre}' creado exitosamente.`);
     document.getElementById("formCrearEvento").reset();
     await cargarEventos();
 
@@ -782,7 +879,7 @@ async function agregarModalidadAEvento(e) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "No se pudo agregar la modalidad.");
 
-    alert(`¡Modalidad '${data.nombre}' agregada con éxito!`);
+    alert(`Modalidad '${data.nombre}' agregada con éxito.`);
     document.getElementById("formAgregarModalidad").reset();
     await cargarEventos();
 
@@ -865,17 +962,17 @@ async function cargarReporteRecaudacion() {
         : `<span class="badge badge-success">Activo</span>`;
 
       let modHtml = ev.modalidades.map(m => `
-        <div style="font-size: 0.85rem; margin-bottom: 0.25rem;">
-          <strong>${m.nombreModalidad}:</strong> ${m.entradasVendidas}/${m.cupoMaximo} vendidas — $${m.recaudacion.toLocaleString('es-AR')}
+        <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
+          <strong>${m.nombreModalidad}:</strong> ${m.entradasVendidas}/${m.cupoMaximo} — $${m.recaudacion.toLocaleString('es-AR')}
         </div>
       `).join('');
 
       let btnCancelarHtml = !ev.cancelado 
         ? `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`
-        : `<span style="color: var(--gray-500); font-size: 0.85rem;">Cancelado</span>`;
+        : `<span style="color: var(--slate-400); font-size: 0.8rem;">Cancelado</span>`;
 
       tr.innerHTML = `
-        <td><strong>${ev.nombreEvento}</strong><br><small style="color:var(--gray-500);">${ev.lugar}</small></td>
+        <td><strong>${ev.nombreEvento}</strong><br><small style="color:var(--slate-500);">${ev.lugar}</small></td>
         <td>${new Date(ev.fecha).toLocaleDateString("es-AR")}</td>
         <td>${estadoHtml}</td>
         <td><strong>${ev.entradasVendidas}</strong></td>
@@ -902,7 +999,7 @@ function actualizarSelectsEventos() {
   const selectModalidadEv = document.getElementById("modalidadEventoSelect");
 
   if (selectPuerta) {
-    selectPuerta.innerHTML = `<option value="">-- Todos los eventos / Sin filtro de evento --</option>`;
+    selectPuerta.innerHTML = `<option value="">-- Todos los eventos / Sin filtro estricto --</option>`;
     state.eventos.forEach(e => {
       const opt = document.createElement("option");
       opt.value = e.id;
