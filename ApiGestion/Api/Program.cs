@@ -221,6 +221,29 @@ app.MapPost("/api/eventos/{id:guid}/modalidades", (HttpContext context, Guid id,
 .WithTags("Eventos")
 .WithSummary("Agrega una modalidad de entrada a un evento (Requiere rol Organizador).");
 
+app.MapPut("/api/eventos/{idEvento:guid}/modalidades/{idModalidad:guid}/cancelar", (HttpContext context, Guid idEvento, Guid idModalidad, EventoService eventoService, UsuarioService usuarioService) =>
+{
+    try
+    {
+        string? dni = ObtenerDni(context);
+        usuarioService.ValidarRol(dni, RolUsuario.Organizador);
+
+        var modalidadCancelada = eventoService.CancelarModalidad(idEvento, idModalidad);
+        return Results.Ok(new { mensaje = "Modalidad cancelada exitosamente.", modalidad = modalidadCancelada });
+    }
+    catch (UnauthorizedAccessException ex)
+    {
+        return Results.Json(new { error = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
+    }
+    catch (KeyNotFoundException ex)
+    {
+        return Results.NotFound(new { error = ex.Message });
+    }
+})
+.WithName("CancelarModalidad")
+.WithTags("Eventos")
+.WithSummary("Cancela una modalidad de un evento (Requiere rol Organizador).");
+
 // -------------------------------------------------------------
 // 3. Compras
 // -------------------------------------------------------------

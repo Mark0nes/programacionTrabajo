@@ -28,4 +28,5 @@ public class ReporteModalidadDto
     public int CupoDisponible { get; set; }
     public int EntradasVendidas { get; set; }
     public decimal Recaudacion { get; set; }
+    public bool Cancelada { get; set; }
 }

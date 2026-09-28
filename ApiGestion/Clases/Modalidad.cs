@@ -8,6 +8,7 @@ public class Modalidad
     public string Beneficios { get; set; } = string.Empty;
     public int CupoMaximo { get; set; }
     public int CupoDisponible { get; set; }
+    public bool Cancelada { get; set; } = false;
 
     public Modalidad()
     {
@@ -36,15 +37,26 @@ public class Modalidad
         Beneficios = beneficios?.Trim() ?? string.Empty;
         CupoMaximo = cupoMaximo;
         CupoDisponible = cupoMaximo;
+        Cancelada = false;
+    }
+
+    public void Cancelar()
+    {
+        Cancelada = true;
     }
 
     public bool HayCupoDisponible(int cantidad = 1)
     {
-        return CupoDisponible >= cantidad;
+        return !Cancelada && CupoDisponible >= cantidad;
     }
 
     public void RegistrarVenta(int cantidad)
     {
+        if (Cancelada)
+        {
+            throw new InvalidOperationException("No se pueden vender entradas para una modalidad cancelada.");
+        }
+
         if (cantidad <= 0)
         {
             throw new ArgumentException("La cantidad de entradas debe ser mayor que cero.");

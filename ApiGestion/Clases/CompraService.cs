@@ -70,6 +70,11 @@ public class CompraService
             throw new KeyNotFoundException($"No se encontró la modalidad con ID '{idModalidad}' en el evento.");
         }
 
+        if (modalidad.Cancelada)
+        {
+            throw new InvalidOperationException($"La modalidad '{modalidad.Nombre}' ha sido cancelada.");
+        }
+
         if (!modalidad.HayCupoDisponible(cantidad))
         {
             throw new InvalidOperationException($"No hay suficiente cupo disponible en '{modalidad.Nombre}'. Cupo restante: {modalidad.CupoDisponible}.");

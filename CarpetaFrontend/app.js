@@ -15,7 +15,9 @@ const state = {
   compraActual: null,
   historialValidaciones: [],
   leafletMap: null,
-  mapMarker: null
+  mapMarker: null,
+  mapaCrearEvento: null,
+  markerCrearEvento: null
 };
 
 // =========================================================================
@@ -61,6 +63,9 @@ function mostrarPestaña(targetId) {
     cargarReporteRecaudacion();
   } else if (targetId === "consultaCompraView") {
     actualizarMisComprasRapidas();
+  } else if (targetId === "organizadorView" && state.usuarioActivo?.rol === "Organizador") {
+    inicializarMapaCrearEvento();
+    renderizarModalidadesParaCancelar();
   }
 }
 
@@ -253,16 +258,29 @@ function renderizarCatalogo() {
         <p class="event-description">${ev.descripcion || "Sin descripción adicional."}</p>
         ${modalidadesHtml}
       </div>
-      <div class="event-card-footer">
+      <div class="event-card-footer" style="display: flex; gap: 0.5rem;">
         <button class="btn btn-primary btn-block btn-ver-detalle" data-id="${ev.id}">
           ${state.usuarioActivo?.rol === "Comprador" ? "Comprar Entradas" : "Ver Detalle"}
         </button>
+        ${state.usuarioActivo?.rol === "Organizador" && !ev.cancelado ? `
+          <button class="btn btn-danger btn-sm btn-cancelar-card" data-id="${ev.id}" data-nombre="${ev.nombre}" title="Cancelar Evento">
+            🚫
+          </button>
+        ` : ''}
       </div>
     `;
 
     card.querySelector(".btn-ver-detalle").addEventListener("click", () => {
       abrirDetalleEvento(ev.id);
     });
+
+    const btnCancCard = card.querySelector(".btn-cancelar-card");
+    if (btnCancCard) {
+      btnCancCard.addEventListener("click", (e) => {
+        e.stopPropagation();
+        cancelarEvento(ev.id, ev.nombre);
+      });
+    }
 
     container.appendChild(card);
   });
@@ -298,6 +316,17 @@ function abrirDetalleEvento(eventoId) {
     badge.className = "badge badge-success";
   }
 
+  // Botón para cancelar evento completo desde el detalle (Organizador)
+  const btnCancEvDetalle = document.getElementById("btnCancelarEventoDetalle");
+  if (btnCancEvDetalle) {
+    if (state.usuarioActivo?.rol === "Organizador" && !evento.cancelado) {
+      btnCancEvDetalle.style.display = "inline-flex";
+      btnCancEvDetalle.onclick = () => cancelarEvento(evento.id, evento.nombre);
+    } else {
+      btnCancEvDetalle.style.display = "none";
+    }
+  }
+
   // Cargar selector de modalidades
   const selectMod = document.getElementById("selectModalidad");
   selectMod.innerHTML = "";
@@ -306,7 +335,11 @@ function abrirDetalleEvento(eventoId) {
     evento.modalidades.forEach(m => {
       const opt = document.createElement("option");
       opt.value = m.id;
-      opt.textContent = `${m.nombre} — $${m.precio.toLocaleString('es-AR')} (Disponibles: ${m.cupoDisponible})`;
+      const estadoTxt = m.cancelada ? ' [CANCELADA]' : ` (Disponibles: ${m.cupoDisponible})`;
+      opt.textContent = `${m.nombre} — $${m.precio.toLocaleString('es-AR')}${estadoTxt}`;
+      if (m.cancelada && state.usuarioActivo?.rol === "Comprador") {
+        opt.disabled = true;
+      }
       selectMod.appendChild(opt);
     });
     actualizarInfoModalidadSeleccionada();
@@ -315,7 +348,15 @@ function abrirDetalleEvento(eventoId) {
     document.getElementById("modalidadInfoBox").style.display = "none";
   }
 
-  // Inicializar o centrar Mapa Interactivo Leaflet con CARTO Voyager (evita 403 de OpenStreetMap)
+  // Botón externo de Google Maps en detalle
+  const btnGmaps = document.getElementById("btnAbrirGoogleMapsExt");
+  if (btnGmaps) {
+    const latGmaps = evento.latitud || -34.6037;
+    const lngGmaps = evento.longitud || -58.3816;
+    btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${latGmaps},${lngGmaps}`;
+  }
+
+  // Inicializar o centrar Mapa Interactivo con Google Maps / OpenStreetMap
   renderizarMapa(evento.latitud, evento.longitud, evento.nombre, evento.lugar);
 
   // Resetear cantidad y calcular precio
@@ -323,6 +364,35 @@ function abrirDetalleEvento(eventoId) {
   calcularPrecioCompra();
 
   mostrarPestaña("detalleView");
+}
+
+// Configuración de capas base sin API key (Google Maps estándar, Google Satélite, OpenStreetMap)
+function obtenerCapasBaseMapa() {
+  const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google Maps'
+  });
+
+  const googleSatelite = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google Maps'
+  });
+
+  const openStreetMap = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  });
+
+  return {
+    capas: {
+      "Google Maps (Calles)": googleCalles,
+      "Google Maps (Satélite)": googleSatelite,
+      "OpenStreetMap": openStreetMap
+    },
+    predeterminada: googleCalles
+  };
 }
 
 function renderizarMapa(lat, lng, titulo, lugar) {
@@ -338,25 +408,31 @@ function renderizarMapa(lat, lng, titulo, lugar) {
     if (!mapDiv) return;
 
     if (!state.leafletMap) {
-      state.leafletMap = L.map('mapContainer').setView([finalLat, finalLng], 14);
+      state.leafletMap = L.map('mapContainer').setView([finalLat, finalLng], 15);
 
-      // Usar CARTO Voyager: infraestructura CDN confiable que no bloquea IPs compartidas (universidades)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 19
-      }).addTo(state.leafletMap);
+      const baseLayers = obtenerCapasBaseMapa();
+      baseLayers.predeterminada.addTo(state.leafletMap);
+      L.control.layers(baseLayers.capas, null, { position: 'topright' }).addTo(state.leafletMap);
     } else {
       state.leafletMap.invalidateSize();
-      state.leafletMap.setView([finalLat, finalLng], 14);
+      state.leafletMap.setView([finalLat, finalLng], 15);
     }
 
     if (state.mapMarker) {
       state.leafletMap.removeLayer(state.mapMarker);
     }
 
+    const gmapsLink = `https://www.google.com/maps/search/?api=1&query=${finalLat},${finalLng}`;
     state.mapMarker = L.marker([finalLat, finalLng]).addTo(state.leafletMap);
-    state.mapMarker.bindPopup(`<strong>${titulo}</strong><br>${lugar}`).openPopup();
+    state.mapMarker.bindPopup(`
+      <div style="min-width: 190px; padding: 2px;">
+        <strong style="font-size: 0.95rem; color: #1e293b;">${titulo}</strong><br>
+        <span style="color: #64748b; font-size: 0.825rem; display: block; margin: 0.25rem 0;">${lugar}</span>
+        <a href="${gmapsLink}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: 600; font-size: 0.8rem; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; margin-top: 0.25rem;">
+          🗺️ Abrir en Google Maps ↗
+        </a>
+      </div>
+    `).openPopup();
   }, 100);
 }
 
@@ -376,6 +452,42 @@ function actualizarInfoModalidadSeleccionada() {
   document.getElementById("modInfoBeneficios").textContent = modalidad.beneficios || "Sin beneficios especiales.";
   document.getElementById("modInfoCupo").textContent = modalidad.cupoDisponible;
   document.getElementById("modInfoPrecio").textContent = `$${modalidad.precio.toLocaleString('es-AR')}`;
+
+  const badgeEstado = document.getElementById("modInfoBadgeEstado");
+  if (badgeEstado) {
+    if (modalidad.cancelada) {
+      badgeEstado.textContent = "Cancelada";
+      badgeEstado.className = "badge badge-danger";
+    } else {
+      badgeEstado.textContent = "Activa";
+      badgeEstado.className = "badge badge-success";
+    }
+  }
+
+  const boxCancMod = document.getElementById("boxCancelarModalidadDetalle");
+  const btnCancMod = document.getElementById("btnCancelarModalidadDetalle");
+  if (boxCancMod && btnCancMod) {
+    if (state.usuarioActivo?.rol === "Organizador" && !modalidad.cancelada && !state.eventoSeleccionado?.cancelado) {
+      boxCancMod.style.display = "block";
+      btnCancMod.onclick = () => cancelarModalidad(state.eventoSeleccionado.id, modalidad.id, modalidad.nombre);
+    } else {
+      boxCancMod.style.display = "none";
+    }
+  }
+
+  const btnConfirmar = document.getElementById("btnConfirmarCompra");
+  if (btnConfirmar) {
+    if (modalidad.cancelada) {
+      btnConfirmar.disabled = true;
+      btnConfirmar.textContent = "Modalidad Cancelada";
+    } else if (state.eventoSeleccionado?.cancelado) {
+      btnConfirmar.disabled = true;
+      btnConfirmar.textContent = "Evento Cancelado";
+    } else {
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = "Comprar Entradas";
+    }
+  }
 
   const inputCant = document.getElementById("inputCantidad");
   inputCant.max = Math.max(1, modalidad.cupoDisponible);
@@ -838,6 +950,19 @@ async function crearNuevoEvento(e) {
 
     alert(`Evento '${data.nombre}' creado exitosamente.`);
     document.getElementById("formCrearEvento").reset();
+
+    // Resetear marcador y mapa
+    const badgeCoords = document.getElementById("textoCoordenadasSeleccionadas");
+    if (badgeCoords) badgeCoords.textContent = "📍 Coordenadas: -34.6037, -58.3816";
+    const inputLat = document.getElementById("nuevoEventoLatitud");
+    const inputLng = document.getElementById("nuevoEventoLongitud");
+    if (inputLat) inputLat.value = "-34.6037";
+    if (inputLng) inputLng.value = "-58.3816";
+    if (state.mapaCrearEvento && state.markerCrearEvento) {
+      state.markerCrearEvento.setLatLng([-34.6037, -58.3816]);
+      state.mapaCrearEvento.setView([-34.6037, -58.3816], 13);
+    }
+
     await cargarEventos();
 
   } catch (err) {
@@ -911,6 +1036,12 @@ async function cancelarEvento(idEvento, nombreEvento) {
 
     alert(data.mensaje || "Evento cancelado exitosamente.");
     await cargarEventos();
+    renderizarModalidadesParaCancelar();
+
+    if (state.eventoSeleccionado?.id === idEvento) {
+      abrirDetalleEvento(idEvento);
+    }
+
     if (document.getElementById("reporteView").classList.contains("active")) {
       await cargarReporteRecaudacion();
     }
@@ -997,6 +1128,7 @@ async function cargarReporteRecaudacion() {
 function actualizarSelectsEventos() {
   const selectPuerta = document.getElementById("puertaEventoSelect");
   const selectModalidadEv = document.getElementById("modalidadEventoSelect");
+  const selectCancelar = document.getElementById("cancelarEventoSelect");
 
   if (selectPuerta) {
     selectPuerta.innerHTML = `<option value="">-- Todos los eventos / Sin filtro estricto --</option>`;
@@ -1017,6 +1149,226 @@ function actualizarSelectsEventos() {
       selectModalidadEv.appendChild(opt);
     });
   }
+
+  if (selectCancelar) {
+    const valorPrevio = selectCancelar.value;
+    selectCancelar.innerHTML = "";
+    state.eventos.forEach(e => {
+      const opt = document.createElement("option");
+      opt.value = e.id;
+      opt.textContent = `${e.nombre}${e.cancelado ? ' [CANCELADO]' : ''}`;
+      selectCancelar.appendChild(opt);
+    });
+
+    if (valorPrevio && state.eventos.some(e => e.id === valorPrevio)) {
+      selectCancelar.value = valorPrevio;
+    }
+    renderizarModalidadesParaCancelar();
+  }
+}
+
+// =========================================================================
+// 8.1 Mapa Picker Interactivo y Búsqueda de Ubicación para Crear Evento
+// =========================================================================
+function inicializarMapaCrearEvento() {
+  setTimeout(() => {
+    const mapDiv = document.getElementById("mapaCrearEvento");
+    if (!mapDiv) return;
+
+    let defaultLat = parseFloat(document.getElementById("nuevoEventoLatitud")?.value) || -34.6037;
+    let defaultLng = parseFloat(document.getElementById("nuevoEventoLongitud")?.value) || -58.3816;
+
+    if (!state.mapaCrearEvento) {
+      state.mapaCrearEvento = L.map('mapaCrearEvento').setView([defaultLat, defaultLng], 13);
+
+      const baseLayers = obtenerCapasBaseMapa();
+      baseLayers.predeterminada.addTo(state.mapaCrearEvento);
+      L.control.layers(baseLayers.capas, null, { position: 'topright' }).addTo(state.mapaCrearEvento);
+
+      state.markerCrearEvento = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(state.mapaCrearEvento);
+      state.markerCrearEvento.bindPopup("Arrastra este pin o haz clic en el mapa").openPopup();
+
+      state.markerCrearEvento.on('dragend', function (e) {
+        const pos = e.target.getLatLng();
+        actualizarUbicacionSeleccionada(pos.lat, pos.lng, true);
+      });
+
+      state.mapaCrearEvento.on('click', function (e) {
+        state.markerCrearEvento.setLatLng(e.latlng);
+        state.markerCrearEvento.bindPopup("Ubicación fijada").openPopup();
+        actualizarUbicacionSeleccionada(e.latlng.lat, e.latlng.lng, true);
+      });
+    } else {
+      state.mapaCrearEvento.invalidateSize();
+    }
+  }, 150);
+}
+
+function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
+  const inputLat = document.getElementById("nuevoEventoLatitud");
+  const inputLng = document.getElementById("nuevoEventoLongitud");
+  const badgeCoords = document.getElementById("textoCoordenadasSeleccionadas");
+
+  if (inputLat) inputLat.value = lat.toFixed(6);
+  if (inputLng) inputLng.value = lng.toFixed(6);
+  if (badgeCoords) badgeCoords.textContent = `📍 Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+  if (buscarNombre) {
+    const inputLugar = document.getElementById("nuevoEventoLugar");
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.display_name && inputLugar) {
+          inputLugar.value = data.display_name;
+        }
+      })
+      .catch(err => {
+        console.warn("Reverse geocoding no disponible:", err);
+      });
+  }
+}
+
+async function buscarLugarEnMapa() {
+  const inputLugar = document.getElementById("nuevoEventoLugar");
+  const query = inputLugar ? inputLugar.value.trim() : "";
+  if (!query) {
+    alert("Por favor ingrese un nombre de lugar, dirección o ciudad para buscar.");
+    inputLugar?.focus();
+    return;
+  }
+
+  const btnBuscar = document.getElementById("btnBuscarLugarMapa");
+  const textoOriginal = btnBuscar ? btnBuscar.innerHTML : "";
+  if (btnBuscar) {
+    btnBuscar.disabled = true;
+    btnBuscar.innerHTML = "Buscando...";
+  }
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      alert("No se encontró la dirección especificada en el mapa. Puedes hacer clic directamente sobre el mapa para ubicar el marcador.");
+      return;
+    }
+
+    const lat = parseFloat(data[0].lat);
+    const lon = parseFloat(data[0].lon);
+
+    if (state.mapaCrearEvento && state.markerCrearEvento) {
+      state.mapaCrearEvento.setView([lat, lon], 15);
+      state.markerCrearEvento.setLatLng([lat, lon]);
+      state.markerCrearEvento.bindPopup(`<strong>Ubicación seleccionada:</strong><br>${data[0].display_name}`).openPopup();
+    }
+
+    actualizarUbicacionSeleccionada(lat, lon, false);
+
+  } catch (err) {
+    console.error("Error al buscar en mapa:", err);
+    alert("No se pudo conectar con el servicio de mapas para la búsqueda. Puedes posicionar el marcador manualmente haciendo clic en el mapa.");
+  } finally {
+    if (btnBuscar) {
+      btnBuscar.disabled = false;
+      btnBuscar.innerHTML = textoOriginal;
+    }
+  }
+}
+
+// =========================================================================
+// 8.2 Cancelación de Modalidades individuales (Organizador)
+// =========================================================================
+async function cancelarModalidad(idEvento, idModalidad, nombreModalidad) {
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Acción restringida: debe operar como Organizador.");
+    return;
+  }
+
+  if (!confirm(`¿Está seguro de cancelar la modalidad '${nombreModalidad}'?\nLos compradores ya no podrán adquirir entradas de esta modalidad.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_GESTION}/eventos/${idEvento}/modalidades/${idModalidad}/cancelar`, {
+      method: "PUT",
+      headers: {
+        "X-Dni": state.usuarioActivo.dni.toString()
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "No se pudo cancelar la modalidad.");
+
+    alert(data.mensaje || "Modalidad cancelada exitosamente.");
+    await cargarEventos();
+
+    if (state.eventoSeleccionado?.id === idEvento) {
+      abrirDetalleEvento(idEvento);
+    }
+
+    renderizarModalidadesParaCancelar();
+
+    if (document.getElementById("reporteView").classList.contains("active")) {
+      await cargarReporteRecaudacion();
+    }
+
+  } catch (err) {
+    alert(`Error al cancelar modalidad: ${err.message}`);
+  }
+}
+
+function renderizarModalidadesParaCancelar() {
+  const selectEv = document.getElementById("cancelarEventoSelect");
+  const tbody = document.getElementById("tablaModalidadesCancelarBody");
+  if (!tbody) return;
+
+  const eventoId = selectEv ? selectEv.value : null;
+  const evento = state.eventos.find(e => e.id === eventoId);
+
+  tbody.innerHTML = "";
+
+  if (!evento) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Selecciona un evento para gestionar sus modalidades.</td></tr>`;
+    return;
+  }
+
+  if (!evento.modalidades || evento.modalidades.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Este evento no tiene modalidades registradas aún.</td></tr>`;
+    return;
+  }
+
+  evento.modalidades.forEach(m => {
+    const tr = document.createElement("tr");
+
+    let estadoBadge = `<span class="badge badge-success">Activa</span>`;
+    let btnAccionHtml = `
+      <button class="btn btn-danger btn-sm btn-canc-mod" data-mod-id="${m.id}" data-mod-nombre="${m.nombre}">
+        🚫 Cancelar
+      </button>
+    `;
+
+    if (m.cancelada) {
+      estadoBadge = `<span class="badge badge-danger">Cancelada</span>`;
+      btnAccionHtml = `<span style="color: var(--gray-500); font-size: 0.825rem; font-style: italic;">Cancelada</span>`;
+    } else if (evento.cancelado) {
+      btnAccionHtml = `<span style="color: var(--gray-500); font-size: 0.825rem; font-style: italic;">Evento Cancelado</span>`;
+    }
+
+    tr.innerHTML = `
+      <td><strong>${m.nombre}</strong><br><small style="color: var(--gray-500);">${m.beneficios || "Sin beneficios"}</small></td>
+      <td>$${m.precio.toLocaleString('es-AR')}</td>
+      <td>${m.cupoDisponible} / ${m.cupoMaximo}</td>
+      <td>${estadoBadge}</td>
+      <td>${btnAccionHtml}</td>
+    `;
+
+    const btnCanc = tr.querySelector(".btn-canc-mod");
+    if (btnCanc) {
+      btnCanc.addEventListener("click", () => cancelarModalidad(evento.id, m.id, m.nombre));
+    }
+
+    tbody.appendChild(tr);
+  });
 }
 
 // =========================================================================
@@ -1044,10 +1396,29 @@ function setupEventListeners() {
   // Búsqueda de Compra
   document.getElementById("btnBuscarCompra")?.addEventListener("click", () => buscarCompra());
 
-  // Organizador
+  // Organizador - Eventos y Modalidades
   document.getElementById("formCrearEvento")?.addEventListener("submit", crearNuevoEvento);
   document.getElementById("formAgregarModalidad")?.addEventListener("submit", agregarModalidadAEvento);
   document.getElementById("btnRefrescarReporte")?.addEventListener("click", cargarReporteRecaudacion);
+
+  // Mapa y Búsqueda para Crear Evento
+  document.getElementById("btnBuscarLugarMapa")?.addEventListener("click", buscarLugarEnMapa);
+  document.getElementById("nuevoEventoLugar")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      buscarLugarEnMapa();
+    }
+  });
+
+  // Cancelar Evento Completo y cambio de selección de evento
+  document.getElementById("cancelarEventoSelect")?.addEventListener("change", renderizarModalidadesParaCancelar);
+  document.getElementById("btnCancelarEventoSeleccionado")?.addEventListener("click", () => {
+    const sel = document.getElementById("cancelarEventoSelect");
+    const ev = state.eventos.find(e => e.id === sel?.value);
+    if (ev) {
+      cancelarEvento(ev.id, ev.nombre);
+    }
+  });
 
   // Modal Compra Exitosa
   const cerrarModal = () => document.getElementById("modalCompraExitosa").classList.remove("active");

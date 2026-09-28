@@ -96,7 +96,12 @@
             </svg>
             Volver al Catálogo
           </button>
-          <span id="detalleStatusBadge" class="badge badge-success">Disponible</span>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="btnCancelarEventoDetalle" class="btn btn-danger btn-sm role-organizador-only" style="display: none;">
+              🚫 Cancelar Evento
+            </button>
+            <span id="detalleStatusBadge" class="badge badge-success">Disponible</span>
+          </div>
         </div>
 
         <div class="detail-layout">
@@ -127,7 +132,12 @@
 
             <!-- Mapa Interactivo -->
             <div class="map-section">
-              <h4 class="section-subheading">Ubicación del evento</h4>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 class="section-subheading" style="margin: 0;">Ubicación del evento</h4>
+                <a id="btnAbrirGoogleMapsExt" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="font-size: 0.775rem; padding: 0.25rem 0.65rem; display: inline-flex; align-items: center; gap: 4px;">
+                  🗺️ Ver en Google Maps ↗
+                </a>
+              </div>
               <div id="mapContainer"></div>
             </div>
           </div>
@@ -143,11 +153,19 @@
               </div>
 
               <div id="modalidadInfoBox" class="modalities-preview">
-                <div class="modalities-preview-title" id="modInfoNombre"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                  <div class="modalities-preview-title" id="modInfoNombre"></div>
+                  <span id="modInfoBadgeEstado" class="badge badge-success">Activa</span>
+                </div>
                 <div class="modalities-preview-perks" id="modInfoBeneficios"></div>
                 <div class="modalities-preview-meta">
                   <span>Cupo disponible: <strong id="modInfoCupo"></strong></span>
                   <span>Precio unitario: <strong id="modInfoPrecio"></strong></span>
+                </div>
+                <div id="boxCancelarModalidadDetalle" style="margin-top: 0.75rem; display: none;">
+                  <button id="btnCancelarModalidadDetalle" type="button" class="btn btn-danger btn-sm btn-block">
+                    🚫 Cancelar esta Modalidad
+                  </button>
                 </div>
               </div>
 
@@ -357,25 +375,28 @@
                 <label class="form-label" for="nuevoEventoDescripcion">Descripción</label>
                 <textarea id="nuevoEventoDescripcion" class="form-control" rows="2" placeholder="Detalle o sinopsis del espectáculo"></textarea>
               </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label" for="nuevoEventoFecha">Fecha y Hora</label>
-                  <input type="datetime-local" id="nuevoEventoFecha" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="nuevoEventoLugar">Lugar / Dirección</label>
-                  <input type="text" id="nuevoEventoLugar" class="form-control" required placeholder="Ej: Teatro Coliseo">
+              <div class="form-group">
+                <label class="form-label" for="nuevoEventoFecha">Fecha y Hora</label>
+                <input type="datetime-local" id="nuevoEventoFecha" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="nuevoEventoLugar">Lugar / Dirección</label>
+                <div style="display: flex; gap: 0.5rem;">
+                  <input type="text" id="nuevoEventoLugar" class="form-control" required placeholder="Ej: Teatro Coliseo, Buenos Aires">
+                  <button type="button" id="btnBuscarLugarMapa" class="btn btn-primary" style="white-space: nowrap; padding: 0.5rem 0.85rem;">
+                    🔍 Buscar en Mapa
+                  </button>
                 </div>
               </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label" for="nuevoEventoLatitud">Latitud (Coordenadas)</label>
-                  <input type="number" step="0.0001" id="nuevoEventoLatitud" class="form-control" placeholder="-34.6037" value="-34.6037">
+              <div class="form-group">
+                <label class="form-label">📍 Ubicación en Mapa (haz clic o busca la dirección):</label>
+                <div id="mapaCrearEvento" style="height: 220px; width: 100%; border-radius: 8px; border: 1px solid var(--gray-200); margin-bottom: 0.5rem; z-index: 5;"></div>
+                <div class="location-badge" style="background: var(--primary-light); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.85rem; color: var(--primary);">
+                  <strong id="textoCoordenadasSeleccionadas">📍 Coordenadas: -34.6037, -58.3816</strong>
+                  <span style="color: var(--gray-500); display: block; font-size: 0.75rem;">Haz clic en el mapa para ajustar el punto exacto.</span>
                 </div>
-                <div class="form-group">
-                  <label class="form-label" for="nuevoEventoLongitud">Longitud (Coordenadas)</label>
-                  <input type="number" step="0.0001" id="nuevoEventoLongitud" class="form-control" placeholder="-58.3816" value="-58.3816">
-                </div>
+                <input type="hidden" id="nuevoEventoLatitud" value="-34.6037">
+                <input type="hidden" id="nuevoEventoLongitud" value="-58.3816">
               </div>
               <button type="submit" class="btn btn-success btn-block">Guardar Nuevo Evento</button>
             </form>
@@ -409,6 +430,46 @@
               </div>
               <button type="submit" class="btn btn-primary btn-block">Agregar Modalidad</button>
             </form>
+          </div>
+
+          <!-- Card: Cancelar Eventos y Modalidades -->
+          <div class="organizer-form-card" style="grid-column: 1 / -1; margin-top: 1rem; border-top: 2px solid var(--danger-light);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+              <div>
+                <h3 class="form-section-title" style="color: var(--danger); margin-bottom: 0.25rem;">🚫 Cancelación de Eventos y Modalidades</h3>
+                <p style="color: var(--gray-500); font-size: 0.875rem;">
+                  Cancela un evento completo o alguna de sus modalidades individuales. Las modalidades canceladas no admitirán nuevas compras.
+                </p>
+              </div>
+            </div>
+            
+            <div class="form-row" style="align-items: flex-end; margin-bottom: 1.25rem;">
+              <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                <label class="form-label" for="cancelarEventoSelect">Seleccionar Evento</label>
+                <select id="cancelarEventoSelect" class="form-control"></select>
+              </div>
+              <button id="btnCancelarEventoSeleccionado" type="button" class="btn btn-danger" style="margin-bottom: 0; white-space: nowrap;">
+                🚫 Cancelar Evento Completo
+              </button>
+            </div>
+
+            <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--gray-700);">Modalidades del Evento:</h4>
+            <div class="table-responsive">
+              <table class="styled-table">
+                <thead>
+                  <tr>
+                    <th>Modalidad</th>
+                    <th>Precio</th>
+                    <th>Cupo Restante / Máx</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaModalidadesCancelarBody">
+                  <tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Selecciona un evento para gestionar sus modalidades.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

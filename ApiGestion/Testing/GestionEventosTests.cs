@@ -220,4 +220,55 @@ public class GestionEventosTests
         Assert.That(reporte.TotalGeneralRecaudado, Is.EqualTo(4250m));
         Assert.That(reporte.TotalGeneralEntradasVendidas, Is.EqualTo(5));
     }
+
+    [Test]
+    public void CancelarModalidad_OrganizadorPuedeCancelarModalidad_QuedaMarcadaComoCancelada()
+    {
+        var evento = _eventoService.Crear("Festival Jazz", "Desc", DateTime.Now.AddDays(10), "Club");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "VIP", 4000m, "Beneficios", 20);
+
+        Assert.That(mod.Cancelada, Is.False);
+
+        var modCancelada = _eventoService.CancelarModalidad(evento.Id, mod.Id);
+
+        Assert.That(modCancelada.Cancelada, Is.True);
+        Assert.That(modCancelada.HayCupoDisponible(1), Is.False);
+
+        // Verificar que persiste en el repositorio
+        var eventoRecuperado = _eventoService.ObtenerPorId(evento.Id)!;
+        var modRecuperada = eventoRecuperado.ObtenerModalidadPorId(mod.Id)!;
+        Assert.That(modRecuperada.Cancelada, Is.True);
+    }
+
+    [Test]
+    public void RealizarCompra_ModalidadCancelada_LanzaExcepcion()
+    {
+        var evento = _eventoService.Crear("Show Acrobacias", "Desc", DateTime.Now.AddDays(12), "Circo");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "Platea", 3000m, "Ubicación", 10);
+
+        _eventoService.CancelarModalidad(evento.Id, mod.Id);
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+        {
+            _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 1);
+        });
+
+        Assert.That(ex!.Message, Does.Contain("cancelada"));
+    }
+
+    [Test]
+    public void CancelarEvento_OrganizadorPuedeCancelarEvento_QuedaMarcadoComoCancelado()
+    {
+        var evento = _eventoService.Crear("Expo Autos", "Desc", DateTime.Now.AddDays(25), "Predio");
+        Assert.That(evento.Cancelado, Is.False);
+        Assert.That(evento.EstaDisponible(), Is.True);
+
+        var evCancelado = _eventoService.Cancelar(evento.Id);
+
+        Assert.That(evCancelado.Cancelado, Is.True);
+        Assert.That(evCancelado.EstaDisponible(), Is.False);
+
+        var evRecuperado = _eventoService.ObtenerPorId(evento.Id)!;
+        Assert.That(evRecuperado.Cancelado, Is.True);
+    }
 }

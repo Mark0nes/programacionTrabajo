@@ -76,7 +76,7 @@ programacionTrabajo/
 Para verificar que toda la lógica de negocio y las reglas están en verde:
 
 ```bash
-# Tests de ApiGestion (9 pruebas unitarias)
+# Tests de ApiGestion (12 pruebas unitarias)
 dotnet test programacionTrabajo/ApiGestion/Solucion.sln
 
 # Tests de ApiValidacion (7 pruebas unitarias)
@@ -117,8 +117,8 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 
 | DNI | Nombre | Rol | Acciones Permitidas |
 |---|---|---|---|
-| **30111222** | Lucía Fernández | **Organizador** | Crear/editar/cancelar eventos, agregar modalidades, ver recaudación. |
-| **29888777** | Martín Aguirre | **Organizador** | Crear/editar/cancelar eventos, agregar modalidades, ver recaudación. |
+| **30111222** | Lucía Fernández | **Organizador** | Crear/editar/cancelar eventos y modalidades, ver recaudación. |
+| **29888777** | Martín Aguirre | **Organizador** | Crear/editar/cancelar eventos y modalidades, ver recaudación. |
 | **40123456** | Sofía Gómez | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
 | **38456789** | Nicolás Pereyra | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
 | **41234567** | Valentina Ríos | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
@@ -139,10 +139,11 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 | `GET` | `/api/usuarios` | — | Lista todos los usuarios precargados. |
 | `GET` | `/api/eventos` | — | Lista los eventos disponibles con sus modalidades. |
 | `GET` | `/api/eventos/{id}` | — | Detalle de un evento y sus modalidades. |
-| `POST` | `/api/eventos` | **Organizador** (`X-Dni`) | Crea un nuevo evento. |
+| `POST` | `/api/eventos` | **Organizador** (`X-Dni`) | Crea un nuevo evento (soporta coordenadas y dirección). |
 | `PUT` | `/api/eventos/{id}` | **Organizador** (`X-Dni`) | Edita los datos de un evento. |
-| `PUT` | `/api/eventos/{id}/cancelar` | **Organizador** (`X-Dni`) | Cancela un evento (bloquea ventas futuras). |
+| `PUT` | `/api/eventos/{id}/cancelar` | **Organizador** (`X-Dni`) | Cancela un evento completo (bloquea ventas futuras). |
 | `POST` | `/api/eventos/{id}/modalidades` | **Organizador** (`X-Dni`) | Agrega una modalidad con precio, cupo y beneficios. |
+| `PUT` | `/api/eventos/{id}/modalidades/{idModalidad}/cancelar` | **Organizador** (`X-Dni`) | Cancela una modalidad específica (bloquea ventas para dicha modalidad). |
 | `POST` | `/api/compras` | **Comprador** (`X-Dni`) | Registra compra, descuenta cupo y genera entradas individuales. |
 | `GET` | `/api/compras/{id}` | — | Consulta detalle de compra y estado de cada entrada. |
 | `GET` | `/api/compras?dni={dni}` | — | Lista compras asociadas a un DNI. |
@@ -160,18 +161,21 @@ El sistema incluye los 10 usuarios requeridos en el anexo, identificados por su 
 ## 🎯 Reglas de Negocio Implementadas y Verificadas
 
 1. **Cupo Máximo:** No se puede comprar si la cantidad solicitada supera el `cupoDisponible`.
-2. **Eventos Cancelados o Pasados:** Se rechaza cualquier intento de compra para eventos cancelados o cuya fecha ya pasó.
-3. **Descuento por Volumen:** Si se compran **5 o más entradas** de la misma modalidad en una sola operación, se aplica un **15% de descuento** sobre el total.
-4. **Validación Individual:** Cada entrada posee un **código alfanumérico único de 6 caracteres** generado mediante algoritmo criptoseguro que garantiza 0 repeticiones. Cada entrada se valida por separado en la puerta.
-5. **Uso Único en Puerta:** Una vez que una entrada fue validada para ingresar, se registra su fecha de uso y no puede volver a ser utilizada (`YaFueUsada`).
-6. **Validación de Evento:** Una entrada solo es válida para el evento con el que fue comprada. Si se intenta validar en otro evento, es rechazada (`EventoIncorrecto`).
-7. **Control de Acceso por Roles:** Los endpoints administrativos (`POST /api/eventos`, `PUT /cancelar`, `/modalidades`, `/reportes/recaudacion`) exigen DNI de un usuario con rol `Organizador` (vía Header `X-Dni`). Si se envía el DNI de un `Comprador`, el servidor responde `403 Forbidden`.
+2. **Eventos y Modalidades Cancelados:** Se rechaza cualquier intento de compra para eventos cancelados o modalidades canceladas.
+3. **Eventos Pasados:** Se rechaza cualquier intento de compra para eventos cuya fecha ya pasó.
+4. **Cancelación por Organizador:** Exclusivamente los usuarios con rol `Organizador` pueden cancelar eventos completos o modalidades individuales.
+5. **Descuento por Volumen:** Si se compran **5 o más entradas** de la misma modalidad en una sola operación, se aplica un **15% de descuento** sobre el total.
+6. **Validación Individual:** Cada entrada posee un **código alfanumérico único de 6 caracteres** generado mediante algoritmo criptoseguro que garantiza 0 repeticiones. Cada entrada se valida por separado en la puerta.
+7. **Uso Único en Puerta:** Una vez que una entrada fue validada para ingresar, se registra su fecha de uso y no puede volver a ser utilizada (`YaFueUsada`).
+8. **Validación de Evento:** Una entrada solo es válida para el evento con el que fue comprada. Si se intenta validar en otro evento, es rechazada (`EventoIncorrecto`).
+9. **Control de Acceso por Roles:** Los endpoints administrativos (`POST /api/eventos`, `PUT /cancelar`, `/modalidades`, `/reportes/recaudacion`) exigen DNI de un usuario con rol `Organizador` (vía Header `X-Dni`). Si se envía el DNI de un `Comprador`, el servidor responde `403 Forbidden`.
 
 ---
 
-## 🌟 Sección de Promoción
+## 🌟 Sección de Promoción y Mejoras de Usabilidad
 
-- **Mapa Interactivo con Leaflet y OpenStreetMap:** En la vista de detalle de cada evento, el frontend renderiza un mapa centrado en las coordenadas geográficas (`latitud` y `longitud`) del evento con un marcador interactivo y popup con la dirección y nombre.
+- **Selector y Buscador de Ubicación en Mapa (Leaflet + Nominatim):** Al crear un evento, el organizador no necesita ingresar latitud y longitud manualmente: puede escribir la dirección o nombre del lugar y buscarlo automáticamente en el mapa mediante el geocodificador Nominatim, o bien hacer clic y arrastrar el pin interactivo directamente en el mapa para ajustar las coordenadas.
+- **Cancelación de Modalidades y Eventos:** Interfaz dedicada para cancelar modalidades individuales o eventos completos, impidiendo compras indebidas y actualizando el catálogo y reportes en tiempo real.
 - **Cancelación de Entrada Individual:** Un comprador puede cancelar una entrada individual comprada siempre que **no haya sido validada en puerta** y **la fecha del evento no haya pasado**. Al cancelarse, la entrada queda deshabilitada y el cupo disponible de la modalidad se restablece automáticamente.
 
 ---

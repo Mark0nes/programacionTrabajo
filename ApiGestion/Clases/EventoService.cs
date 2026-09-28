@@ -116,6 +116,27 @@ public class EventoService
         return modalidad;
     }
 
+    public Modalidad CancelarModalidad(Guid idEvento, Guid idModalidad)
+    {
+        var eventos = _eventoRepository.ObtenerEventos();
+        var evento = eventos.FirstOrDefault(e => e.Id == idEvento);
+
+        if (evento == null)
+        {
+            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{idEvento}'.");
+        }
+
+        var modalidad = evento.ObtenerModalidadPorId(idModalidad);
+        if (modalidad == null)
+        {
+            throw new KeyNotFoundException($"No se encontró ninguna modalidad con ID '{idModalidad}' en el evento.");
+        }
+
+        modalidad.Cancelar();
+        _eventoRepository.GuardarEventos(eventos);
+        return modalidad;
+    }
+
     public ReporteRecaudacionDto ObtenerReporteRecaudacion()
     {
         var eventos = _eventoRepository.ObtenerEventos();
@@ -152,7 +173,8 @@ public class EventoService
                     CupoMaximo = mod.CupoMaximo,
                     CupoDisponible = mod.CupoDisponible,
                     EntradasVendidas = vendidas,
-                    Recaudacion = recaudado
+                    Recaudacion = recaudado,
+                    Cancelada = mod.Cancelada
                 });
             }
 

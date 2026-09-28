@@ -15,7 +15,8 @@
         "Precio": 15000.0,
         "Beneficios": "Acceso general a todos los escenarios y áreas de recreación",
         "CupoMaximo": 100,
-        "CupoDisponible": 96
+        "CupoDisponible": 96,
+        "Cancelada": false
       },
       {
         "Id": "b2222222-2222-2222-2222-222222222222",
@@ -23,7 +24,8 @@
         "Precio": 35000.0,
         "Beneficios": "Acceso prioritario, sector lounge exclusivo y 2 consumiciones",
         "CupoMaximo": 30,
-        "CupoDisponible": 30
+        "CupoDisponible": 30,
+        "Cancelada": false
       }
     ]
   },
@@ -43,7 +45,8 @@
         "Precio": 8000.0,
         "Beneficios": "Acceso a conferencias generales y talleres prácticos",
         "CupoMaximo": 50,
-        "CupoDisponible": 50
+        "CupoDisponible": 50,
+        "Cancelada": false
       },
       {
         "Id": "b4444444-4444-4444-4444-444444444444",
@@ -51,7 +54,8 @@
         "Precio": 18000.0,
         "Beneficios": "Acceso total, sala VIP de networking, certificado oficial y almuerzo",
         "CupoMaximo": 40,
-        "CupoDisponible": 40
+        "CupoDisponible": 40,
+        "Cancelada": false
       }
     ]
   },
@@ -71,7 +75,8 @@
         "Precio": 12000.0,
         "Beneficios": "Ubicación preferencial con excelente acústica y copa de bienvenida",
         "CupoMaximo": 30,
-        "CupoDisponible": 30
+        "CupoDisponible": 30,
+        "Cancelada": false
       },
       {
         "Id": "b6666666-6666-6666-6666-666666666666",
@@ -79,7 +84,8 @@
         "Precio": 7500.0,
         "Beneficios": "Ubicación en planta alta con vista panorámica del escenario",
         "CupoMaximo": 40,
-        "CupoDisponible": 40
+        "CupoDisponible": 40,
+        "Cancelada": false
       }
     ]
   }
