@@ -6,11 +6,13 @@ public class EventoService
 {
     private readonly EventoRepository _eventoRepository;
     private readonly CompraRepository _compraRepository;
+    private readonly UsuarioService _usuarioService;
 
-    public EventoService(EventoRepository? eventoRepository = null, CompraRepository? compraRepository = null)
+    public EventoService(EventoRepository? eventoRepository = null, CompraRepository? compraRepository = null, UsuarioService? usuarioService = null)
     {
         _eventoRepository = eventoRepository ?? new EventoRepository();
         _compraRepository = compraRepository ?? new CompraRepository();
+        _usuarioService = usuarioService ?? new UsuarioService();
     }
 
     public List<Evento> ObtenerTodos()
@@ -141,6 +143,7 @@ public class EventoService
     {
         var eventos = _eventoRepository.ObtenerEventos();
         var compras = _compraRepository.ObtenerCompras();
+        var usuarios = _usuarioService.ObtenerTodos();
 
         var reporte = new ReporteRecaudacionDto();
 
@@ -158,6 +161,32 @@ public class EventoService
                 EntradasVendidas = comprasEvento.Sum(c => c.Entradas.Count(e => !e.Cancelada)),
                 RecaudacionTotal = comprasEvento.Sum(c => c.Total)
             };
+
+            // Agrupar compradores que adquirieron entradas para este evento
+            foreach (var compra in comprasEvento)
+            {
+                int cantActivas = compra.Entradas.Count(e => !e.Cancelada);
+                if (cantActivas > 0)
+                {
+                    var nombreUsuario = usuarios.FirstOrDefault(u => u.Dni.Equals(compra.DniComprador, StringComparison.OrdinalIgnoreCase))?.Nombre ?? $"DNI {compra.DniComprador}";
+                    var existente = repEvento.Compradores.FirstOrDefault(c => c.Dni.Equals(compra.DniComprador, StringComparison.OrdinalIgnoreCase));
+                    if (existente != null)
+                    {
+                        existente.CantidadEntradas += cantActivas;
+                        existente.Total += compra.Total;
+                    }
+                    else
+                    {
+                        repEvento.Compradores.Add(new ReporteCompradorDto
+                        {
+                            Dni = compra.DniComprador,
+                            Nombre = nombreUsuario,
+                            CantidadEntradas = cantActivas,
+                            Total = compra.Total
+                        });
+                    }
+                }
+            }
 
             foreach (var mod in evento.Modalidades)
             {

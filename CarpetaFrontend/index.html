@@ -42,23 +42,23 @@
       </div>
     </div>
 
-    <!-- Navegación por Pestañas -->
+    <!-- Navegación por Pestañas con Enlaces de Ruta -->
     <nav class="nav-tabs" aria-label="Navegación principal">
-      <button class="tab-btn active" data-tab="catalogoView">
+      <a href="#catalogo" class="tab-btn active" data-tab="catalogoView">
         Catálogo de Eventos
-      </button>
-      <button class="tab-btn" data-tab="consultaCompraView">
+      </a>
+      <a href="#consulta-compra" class="tab-btn" data-tab="consultaCompraView">
         Consultar Compra
-      </button>
-      <button class="tab-btn role-organizador-only" data-tab="puertaView" style="display: none;">
+      </a>
+      <a href="#control-acceso" class="tab-btn role-organizador-only" data-tab="puertaView" style="display: none;">
         Control de Acceso
-      </button>
-      <button class="tab-btn role-organizador-only" data-tab="organizadorView" style="display: none;">
+      </a>
+      <a href="#gestion-eventos" class="tab-btn role-organizador-only" data-tab="organizadorView" style="display: none;">
         Gestión de Eventos
-      </button>
-      <button class="tab-btn role-organizador-only" data-tab="reporteView" style="display: none;">
+      </a>
+      <a href="#reporte-recaudacion" class="tab-btn role-organizador-only" data-tab="reporteView" style="display: none;">
         Reporte de Recaudación
-      </button>
+      </a>
     </nav>
   </header>
 
@@ -90,12 +90,12 @@
     <section id="detalleView" class="section-view">
       <div class="card">
         <div class="card-header">
-          <button id="btnVolverCatalogo" class="btn btn-outline btn-sm">
+          <a href="#catalogo" id="btnVolverCatalogo" class="btn btn-outline btn-sm">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m15 18-6-6 6-6"/>
             </svg>
             Volver al Catálogo
-          </button>
+          </a>
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <button id="btnCancelarEventoDetalle" class="btn btn-danger btn-sm role-organizador-only" style="display: none;">
               🚫 Cancelar Evento
@@ -146,6 +146,9 @@
           <div class="detail-purchase-col">
             <div id="panelCompraComprador" class="purchase-box">
               <h3 class="purchase-box-title">Adquisición de Entradas</h3>
+
+              <!-- Banner de Evento Finalizado o Cancelado -->
+              <div id="avisoEventoNoDisponible" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem;"></div>
               
               <div class="form-group">
                 <label class="form-label" for="selectModalidad">Modalidad de Entrada</label>
@@ -390,11 +393,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">📍 Ubicación en Mapa (haz clic o busca la dirección):</label>
-                <div id="mapaCrearEvento" style="height: 220px; width: 100%; border-radius: 8px; border: 1px solid var(--gray-200); margin-bottom: 0.5rem; z-index: 5;"></div>
-                <div class="location-badge" style="background: var(--primary-light); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.85rem; color: var(--primary);">
-                  <strong id="textoCoordenadasSeleccionadas">📍 Coordenadas: -34.6037, -58.3816</strong>
-                  <span style="color: var(--gray-500); display: block; font-size: 0.75rem;">Haz clic en el mapa para ajustar el punto exacto.</span>
-                </div>
+                <div id="mapaCrearEvento" style="height: 240px; width: 100%; border-radius: 8px; border: 1px solid var(--gray-200); margin-bottom: 0.5rem; z-index: 5;"></div>
                 <input type="hidden" id="nuevoEventoLatitud" value="-34.6037">
                 <input type="hidden" id="nuevoEventoLongitud" value="-58.3816">
               </div>
@@ -513,6 +512,7 @@
                 <th>Vendidas</th>
                 <th>Recaudación</th>
                 <th>Desglose por Modalidad</th>
+                <th>Comprador(es)</th>
                 <th>Acciones</th>
               </tr>
             </thead>

@@ -217,6 +217,9 @@ public class GestionEventosTests
 
         Assert.That(repEvento.EntradasVendidas, Is.EqualTo(5));
         Assert.That(repEvento.RecaudacionTotal, Is.EqualTo(4250m));
+        Assert.That(repEvento.Compradores, Has.Count.EqualTo(1));
+        Assert.That(repEvento.Compradores[0].Nombre, Does.Contain("Sofía Gómez"));
+        Assert.That(repEvento.Compradores[0].CantidadEntradas, Is.EqualTo(5));
         Assert.That(reporte.TotalGeneralRecaudado, Is.EqualTo(4250m));
         Assert.That(reporte.TotalGeneralEntradasVendidas, Is.EqualTo(5));
     }

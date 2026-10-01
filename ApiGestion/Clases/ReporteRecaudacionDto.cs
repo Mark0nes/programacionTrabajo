@@ -17,6 +17,15 @@ public class ReporteEventoDto
     public int EntradasVendidas { get; set; }
     public decimal RecaudacionTotal { get; set; }
     public List<ReporteModalidadDto> Modalidades { get; set; } = new List<ReporteModalidadDto>();
+    public List<ReporteCompradorDto> Compradores { get; set; } = new List<ReporteCompradorDto>();
+}
+
+public class ReporteCompradorDto
+{
+    public string Dni { get; set; } = string.Empty;
+    public string Nombre { get; set; } = string.Empty;
+    public int CantidadEntradas { get; set; }
+    public decimal Total { get; set; }
 }
 
 public class ReporteModalidadDto

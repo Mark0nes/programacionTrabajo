@@ -199,16 +199,23 @@ nav.nav-tabs {
   transition: all 0.15s ease;
   font-family: inherit;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .tab-btn:hover {
   color: #ffffff;
+  text-decoration: none;
 }
 
 .tab-btn.active {
   color: #ffffff;
   border-bottom-color: var(--primary);
   font-weight: 600;
+}
+
+/* Ocultar watermark y atribución de Leaflet para mapa limpio estilo Google Maps */
+.leaflet-control-attribution {
+  display: none !important;
 }
 
 /* =========================================================================

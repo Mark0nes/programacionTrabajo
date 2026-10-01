@@ -21,6 +21,27 @@ const state = {
 };
 
 // =========================================================================
+// Mapeo de Rutas URL (Hash Routing) para Enlaces Independientes por Pestaña
+// =========================================================================
+const ROUTE_MAP = {
+  "#catalogo": "catalogoView",
+  "#consulta-compra": "consultaCompraView",
+  "#control-acceso": "puertaView",
+  "#gestion-eventos": "organizadorView",
+  "#reporte-recaudacion": "reporteView",
+  "#detalle": "detalleView"
+};
+
+const VIEW_TO_HASH = {
+  "catalogoView": "#catalogo",
+  "consultaCompraView": "#consulta-compra",
+  "puertaView": "#control-acceso",
+  "organizadorView": "#gestion-eventos",
+  "reporteView": "#reporte-recaudacion",
+  "detalleView": "#detalle"
+};
+
+// =========================================================================
 // Inicialización al cargar el DOM
 // =========================================================================
 document.addEventListener("DOMContentLoaded", async () => {
@@ -28,32 +49,84 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
   await cargarUsuarios();
   await cargarEventos();
+  sincronizarRutaConHash();
 });
 
 // =========================================================================
-// 1. Navegación por pestañas y control de permisos
+// 1. Navegación por pestañas y control de permisos (SPA con Hash Routing)
 // =========================================================================
 function setupNavigation() {
+  window.addEventListener("hashchange", () => {
+    sincronizarRutaConHash();
+  });
+
   const tabs = document.querySelectorAll(".tab-btn");
   tabs.forEach(tab => {
     tab.addEventListener("click", () => {
-      const targetId = tab.dataset.tab;
-      mostrarPestaña(targetId);
+      const hash = tab.getAttribute("href");
+      if (window.location.hash === hash) {
+        sincronizarRutaConHash();
+      }
     });
   });
 }
 
-function mostrarPestaña(targetId) {
-  // Regla de seguridad: Vistas administrativas exclusivas para Organizadores / Administradores
+function sincronizarRutaConHash() {
+  const rawHash = window.location.hash || "#catalogo";
+  const hash = rawHash.split("?")[0];
+  const query = rawHash.includes("?") ? rawHash.split("?")[1] : "";
+
+  // 1. Detalle de Evento: #evento=UUID o #evento/UUID o #detalle?id=UUID
+  if (rawHash.startsWith("#evento=") || rawHash.startsWith("#evento/")) {
+    const id = rawHash.startsWith("#evento=") ? rawHash.replace("#evento=", "") : rawHash.replace("#evento/", "");
+    const eventoId = decodeURIComponent(id).trim();
+    if (eventoId) {
+      cargarDetalleEvento(eventoId);
+      return;
+    }
+  }
+  if (hash === "#detalle") {
+    const urlParams = new URLSearchParams(query);
+    const eventoId = urlParams.get("id");
+    if (eventoId) {
+      cargarDetalleEvento(eventoId);
+      return;
+    } else if (state.eventoSeleccionado) {
+      cargarDetalleEvento(state.eventoSeleccionado.id);
+      return;
+    }
+  }
+
+  // 2. Consulta de Compra con ID directo: #consulta-compra?id=UUID
+  if (hash === "#consulta-compra") {
+    activarVista("consultaCompraView");
+    const urlParams = new URLSearchParams(query);
+    const compraId = urlParams.get("id");
+    if (compraId) {
+      buscarCompra(compraId, false);
+    }
+    return;
+  }
+
+  // 3. Rutas fijas generales
+  const targetId = ROUTE_MAP[hash] || "catalogoView";
+  activarVista(targetId);
+}
+
+function activarVista(targetId) {
+  // Regla de seguridad: Vistas administrativas exclusivas para Organizadores
   const vistasExclusivasOrganizador = ["puertaView", "organizadorView", "reporteView"];
   if (vistasExclusivasOrganizador.includes(targetId) && state.usuarioActivo?.rol !== "Organizador") {
-    targetId = "catalogoView";
+    window.location.hash = "#catalogo";
+    return;
   }
 
   document.querySelectorAll(".tab-btn").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".section-view").forEach(s => s.classList.remove("active"));
 
-  const targetTab = document.querySelector(`.tab-btn[data-tab="${targetId}"]`);
+  // Si estamos en detalle de evento, mantener encendida la pestaña de Catálogo
+  const tabSelector = targetId === "detalleView" ? `[data-tab="catalogoView"]` : `[data-tab="${targetId}"]`;
+  const targetTab = document.querySelector(`.tab-btn${tabSelector}`);
   const targetSection = document.getElementById(targetId);
 
   if (targetTab) targetTab.classList.add("active");
@@ -67,6 +140,17 @@ function mostrarPestaña(targetId) {
     inicializarMapaCrearEvento();
     renderizarModalidadesParaCancelar();
   }
+}
+
+function mostrarPestaña(targetId, actualizarHash = true) {
+  if (actualizarHash) {
+    const hash = VIEW_TO_HASH[targetId] || "#catalogo";
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+      return;
+    }
+  }
+  activarVista(targetId);
 }
 
 // =========================================================================
@@ -136,7 +220,7 @@ function seleccionarUsuario(usuario) {
     // Si el usuario estaba en una pestaña restringida (Puerta, Gestión o Reporte), redirigir al catálogo
     const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab;
     if (activeTab === "organizadorView" || activeTab === "reporteView" || activeTab === "puertaView") {
-      mostrarPestaña("catalogoView");
+      window.location.hash = "#catalogo";
     }
   }
 
@@ -259,11 +343,11 @@ function renderizarCatalogo() {
         ${modalidadesHtml}
       </div>
       <div class="event-card-footer" style="display: flex; gap: 0.5rem;">
-        <button class="btn btn-primary btn-block btn-ver-detalle" data-id="${ev.id}">
-          ${state.usuarioActivo?.rol === "Comprador" ? "Comprar Entradas" : "Ver Detalle"}
-        </button>
+        <a href="#evento=${ev.id}" class="btn ${ev.cancelado || esPasado ? 'btn-outline' : 'btn-primary'} btn-block btn-ver-detalle" data-id="${ev.id}">
+          ${state.usuarioActivo?.rol === "Comprador" ? (ev.cancelado ? "Evento Cancelado" : (esPasado ? "Evento Finalizado" : "Comprar Entradas")) : "Ver Detalle"}
+        </a>
         ${state.usuarioActivo?.rol === "Organizador" && !ev.cancelado ? `
-          <button class="btn btn-danger btn-sm btn-cancelar-card" data-id="${ev.id}" data-nombre="${ev.nombre}" title="Cancelar Evento">
+          <button type="button" class="btn btn-danger btn-sm btn-cancelar-card" data-id="${ev.id}" data-nombre="${ev.nombre}" title="Cancelar Evento">
             🚫
           </button>
         ` : ''}
@@ -271,7 +355,9 @@ function renderizarCatalogo() {
     `;
 
     card.querySelector(".btn-ver-detalle").addEventListener("click", () => {
-      abrirDetalleEvento(ev.id);
+      if (window.location.hash === `#evento=${ev.id}`) {
+        cargarDetalleEvento(ev.id);
+      }
     });
 
     const btnCancCard = card.querySelector(".btn-cancelar-card");
@@ -290,8 +376,31 @@ function renderizarCatalogo() {
 // 4. Detalle de Evento, Mapa Interactivo y Compra
 // =========================================================================
 function abrirDetalleEvento(eventoId) {
+  const hashDestino = `#evento=${eventoId}`;
+  if (window.location.hash === hashDestino) {
+    cargarDetalleEvento(eventoId);
+  } else {
+    window.location.hash = hashDestino;
+  }
+}
+
+function cargarDetalleEvento(eventoId) {
   const evento = state.eventos.find(e => e.id === eventoId);
-  if (!evento) return;
+  if (!evento) {
+    if (state.eventos.length === 0) {
+      cargarEventos().then(() => {
+        const ev = state.eventos.find(e => e.id === eventoId);
+        if (ev) {
+          cargarDetalleEvento(eventoId);
+        } else {
+          window.location.hash = "#catalogo";
+        }
+      });
+      return;
+    }
+    window.location.hash = "#catalogo";
+    return;
+  }
 
   state.eventoSeleccionado = evento;
 
@@ -327,6 +436,26 @@ function abrirDetalleEvento(eventoId) {
     }
   }
 
+  // Banner de advertencia si no admite compra
+  const aviso = document.getElementById("avisoEventoNoDisponible");
+  if (aviso) {
+    if (evento.cancelado) {
+      aviso.style.display = "block";
+      aviso.style.background = "#fee2e2";
+      aviso.style.color = "#991b1b";
+      aviso.style.border = "1px solid #f87171";
+      aviso.innerHTML = "🚫 <strong>Evento cancelado:</strong> La venta de entradas se encuentra cerrada.";
+    } else if (esPasado) {
+      aviso.style.display = "block";
+      aviso.style.background = "#f1f5f9";
+      aviso.style.color = "#475569";
+      aviso.style.border = "1px solid #cbd5e1";
+      aviso.innerHTML = "⏳ <strong>Evento finalizado:</strong> La fecha de este evento ya pasó. No se pueden comprar entradas.";
+    } else {
+      aviso.style.display = "none";
+    }
+  }
+
   // Cargar selector de modalidades
   const selectMod = document.getElementById("selectModalidad");
   selectMod.innerHTML = "";
@@ -337,7 +466,7 @@ function abrirDetalleEvento(eventoId) {
       opt.value = m.id;
       const estadoTxt = m.cancelada ? ' [CANCELADA]' : ` (Disponibles: ${m.cupoDisponible})`;
       opt.textContent = `${m.nombre} — $${m.precio.toLocaleString('es-AR')}${estadoTxt}`;
-      if (m.cancelada && state.usuarioActivo?.rol === "Comprador") {
+      if ((m.cancelada || esPasado || evento.cancelado) && state.usuarioActivo?.rol === "Comprador") {
         opt.disabled = true;
       }
       selectMod.appendChild(opt);
@@ -348,6 +477,14 @@ function abrirDetalleEvento(eventoId) {
     document.getElementById("modalidadInfoBox").style.display = "none";
   }
 
+  if (selectMod) {
+    selectMod.disabled = (evento.cancelado || esPasado) && state.usuarioActivo?.rol === "Comprador";
+  }
+  const inputCant = document.getElementById("inputCantidad");
+  if (inputCant) {
+    inputCant.disabled = (evento.cancelado || esPasado) && state.usuarioActivo?.rol === "Comprador";
+  }
+
   // Botón externo de Google Maps en detalle
   const btnGmaps = document.getElementById("btnAbrirGoogleMapsExt");
   if (btnGmaps) {
@@ -356,17 +493,17 @@ function abrirDetalleEvento(eventoId) {
     btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${latGmaps},${lngGmaps}`;
   }
 
-  // Inicializar o centrar Mapa Interactivo con Google Maps / OpenStreetMap
+  // Inicializar o centrar Mapa Interactivo con Google Maps
   renderizarMapa(evento.latitud, evento.longitud, evento.nombre, evento.lugar);
 
   // Resetear cantidad y calcular precio
   document.getElementById("inputCantidad").value = 1;
   calcularPrecioCompra();
 
-  mostrarPestaña("detalleView");
+  activarVista("detalleView");
 }
 
-// Configuración de capas base sin API key (Google Maps estándar, Google Satélite, OpenStreetMap)
+// Configuración de capas base sin API key (Google Maps estándar y Google Satélite)
 function obtenerCapasBaseMapa() {
   const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
     maxZoom: 20,
@@ -380,16 +517,10 @@ function obtenerCapasBaseMapa() {
     attribution: '&copy; Google Maps'
   });
 
-  const openStreetMap = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors'
-  });
-
   return {
     capas: {
       "Google Maps (Calles)": googleCalles,
-      "Google Maps (Satélite)": googleSatelite,
-      "OpenStreetMap": openStreetMap
+      "Google Maps (Satélite)": googleSatelite
     },
     predeterminada: googleCalles
   };
@@ -408,7 +539,7 @@ function renderizarMapa(lat, lng, titulo, lugar) {
     if (!mapDiv) return;
 
     if (!state.leafletMap) {
-      state.leafletMap = L.map('mapContainer').setView([finalLat, finalLng], 15);
+      state.leafletMap = L.map('mapContainer', { attributionControl: false }).setView([finalLat, finalLng], 15);
 
       const baseLayers = obtenerCapasBaseMapa();
       baseLayers.predeterminada.addTo(state.leafletMap);
@@ -475,14 +606,21 @@ function actualizarInfoModalidadSeleccionada() {
     }
   }
 
+  const esPasado = state.eventoSeleccionado && new Date(state.eventoSeleccionado.fecha) < new Date();
   const btnConfirmar = document.getElementById("btnConfirmarCompra");
   if (btnConfirmar) {
-    if (modalidad.cancelada) {
-      btnConfirmar.disabled = true;
-      btnConfirmar.textContent = "Modalidad Cancelada";
-    } else if (state.eventoSeleccionado?.cancelado) {
+    if (state.eventoSeleccionado?.cancelado) {
       btnConfirmar.disabled = true;
       btnConfirmar.textContent = "Evento Cancelado";
+    } else if (esPasado) {
+      btnConfirmar.disabled = true;
+      btnConfirmar.textContent = "Evento Finalizado";
+    } else if (modalidad.cancelada) {
+      btnConfirmar.disabled = true;
+      btnConfirmar.textContent = "Modalidad Cancelada";
+    } else if (modalidad.cupoDisponible <= 0) {
+      btnConfirmar.disabled = true;
+      btnConfirmar.textContent = "Cupo Agotado";
     } else {
       btnConfirmar.disabled = false;
       btnConfirmar.textContent = "Comprar Entradas";
@@ -490,7 +628,9 @@ function actualizarInfoModalidadSeleccionada() {
   }
 
   const inputCant = document.getElementById("inputCantidad");
-  inputCant.max = Math.max(1, modalidad.cupoDisponible);
+  if (inputCant) {
+    inputCant.max = Math.max(1, modalidad.cupoDisponible);
+  }
 
   calcularPrecioCompra();
 }
@@ -526,6 +666,18 @@ function calcularPrecioCompra() {
 async function procesarCompra() {
   if (!state.usuarioActivo || state.usuarioActivo.rol !== "Comprador") {
     alert("Debe seleccionar un usuario con rol Comprador para realizar la compra.");
+    return;
+  }
+
+  if (!state.eventoSeleccionado) return;
+
+  if (state.eventoSeleccionado.cancelado) {
+    alert("No se pueden comprar entradas para un evento cancelado.");
+    return;
+  }
+
+  if (new Date(state.eventoSeleccionado.fecha) < new Date()) {
+    alert("No se pueden comprar entradas para un evento que ya ha finalizado.");
     return;
   }
 
@@ -611,7 +763,7 @@ function mostrarModalCompraExitosa(compra) {
 async function validarEntradaEnPuerta() {
   if (state.usuarioActivo?.rol !== "Organizador") {
     alert("Acceso denegado: El control de acceso en puerta es exclusivo para usuarios con rol Organizador / Administrador.");
-    mostrarPestaña("catalogoView");
+    window.location.hash = "#catalogo";
     return;
   }
 
@@ -751,11 +903,15 @@ function registrarHistorialValidacion(res) {
 // =========================================================================
 // 6. Consulta de Compra y Aislamiento de Entradas por Usuario
 // =========================================================================
-async function buscarCompra(compraId) {
+async function buscarCompra(compraId, actualizarHash = true) {
   const id = compraId || document.getElementById("inputBuscarCompraId").value.trim();
   if (!id) {
     alert("Por favor ingrese o seleccione un identificador de compra.");
     return;
+  }
+
+  if (actualizarHash && window.location.hash !== `#consulta-compra?id=${id}`) {
+    window.location.hash = `#consulta-compra?id=${id}`;
   }
 
   try {
@@ -898,7 +1054,9 @@ async function actualizarMisComprasRapidas() {
       btn.className = "btn btn-outline btn-sm font-mono";
       btn.textContent = `${compra.id.substring(0, 8)}... (${compra.nombreEvento})`;
       btn.title = `ID: ${compra.id} — ${compra.nombreEvento} (${compra.cantidad} entradas)`;
-      btn.addEventListener("click", () => buscarCompra(compra.id));
+      btn.addEventListener("click", () => {
+        window.location.hash = `#consulta-compra?id=${compra.id}`;
+      });
       cont.appendChild(btn);
     });
 
@@ -952,8 +1110,6 @@ async function crearNuevoEvento(e) {
     document.getElementById("formCrearEvento").reset();
 
     // Resetear marcador y mapa
-    const badgeCoords = document.getElementById("textoCoordenadasSeleccionadas");
-    if (badgeCoords) badgeCoords.textContent = "📍 Coordenadas: -34.6037, -58.3816";
     const inputLat = document.getElementById("nuevoEventoLatitud");
     const inputLng = document.getElementById("nuevoEventoLongitud");
     if (inputLat) inputLat.value = "-34.6037";
@@ -1081,22 +1237,37 @@ async function cargarReporteRecaudacion() {
     tbody.innerHTML = "";
 
     if (reporte.eventos.length === 0) {
-      tbody.innerHTML = "<tr><td colspan='7' style='text-align: center;'>No hay eventos registrados.</td></tr>";
+      tbody.innerHTML = "<tr><td colspan='8' style='text-align: center;'>No hay eventos registrados.</td></tr>";
       return;
     }
 
     reporte.eventos.forEach(ev => {
       const tr = document.createElement("tr");
 
-      let estadoHtml = ev.cancelado 
-        ? `<span class="badge badge-danger">Cancelado</span>` 
-        : `<span class="badge badge-success">Activo</span>`;
+      const esPasado = new Date(ev.fecha) < new Date();
+      let estadoHtml = `<span class="badge badge-success">Activo</span>`;
+      if (ev.cancelado) {
+        estadoHtml = `<span class="badge badge-danger">Cancelado</span>`;
+      } else if (esPasado) {
+        estadoHtml = `<span class="badge badge-secondary">Finalizado</span>`;
+      }
 
       let modHtml = ev.modalidades.map(m => `
         <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
           <strong>${m.nombreModalidad}:</strong> ${m.entradasVendidas}/${m.cupoMaximo} — $${m.recaudacion.toLocaleString('es-AR')}
         </div>
       `).join('');
+
+      let compradoresHtml = "-";
+      if (ev.compradores && ev.compradores.length > 0) {
+        compradoresHtml = ev.compradores.map(c => `
+          <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
+            <strong>${c.nombre}</strong> <small style="color: var(--slate-500);">(${c.cantidadEntradas} ent. — $${c.total.toLocaleString('es-AR')})</small>
+          </div>
+        `).join('');
+      } else {
+        compradoresHtml = `<span style="color: var(--slate-400); font-size: 0.8rem; font-style: italic;">Sin compradores</span>`;
+      }
 
       let btnCancelarHtml = !ev.cancelado 
         ? `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`
@@ -1109,6 +1280,7 @@ async function cargarReporteRecaudacion() {
         <td><strong>${ev.entradasVendidas}</strong></td>
         <td><strong style="color: var(--primary);">$${ev.recaudacionTotal.toLocaleString('es-AR')}</strong></td>
         <td>${modHtml || "-"}</td>
+        <td>${compradoresHtml}</td>
         <td>${btnCancelarHtml}</td>
       `;
 
@@ -1179,7 +1351,7 @@ function inicializarMapaCrearEvento() {
     let defaultLng = parseFloat(document.getElementById("nuevoEventoLongitud")?.value) || -58.3816;
 
     if (!state.mapaCrearEvento) {
-      state.mapaCrearEvento = L.map('mapaCrearEvento').setView([defaultLat, defaultLng], 13);
+      state.mapaCrearEvento = L.map('mapaCrearEvento', { attributionControl: false }).setView([defaultLat, defaultLng], 13);
 
       const baseLayers = obtenerCapasBaseMapa();
       baseLayers.predeterminada.addTo(state.mapaCrearEvento);
@@ -1207,11 +1379,9 @@ function inicializarMapaCrearEvento() {
 function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
   const inputLat = document.getElementById("nuevoEventoLatitud");
   const inputLng = document.getElementById("nuevoEventoLongitud");
-  const badgeCoords = document.getElementById("textoCoordenadasSeleccionadas");
 
   if (inputLat) inputLat.value = lat.toFixed(6);
   if (inputLng) inputLng.value = lng.toFixed(6);
-  if (badgeCoords) badgeCoords.textContent = `📍 Coordenadas: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 
   if (buscarNombre) {
     const inputLugar = document.getElementById("nuevoEventoLugar");
@@ -1377,7 +1547,10 @@ function renderizarModalidadesParaCancelar() {
 function setupEventListeners() {
   // Catálogo
   document.getElementById("btnRefrescarEventos")?.addEventListener("click", cargarEventos);
-  document.getElementById("btnVolverCatalogo")?.addEventListener("click", () => mostrarPestaña("catalogoView"));
+  document.getElementById("btnVolverCatalogo")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.location.hash = "#catalogo";
+  });
 
   // Compra
   document.getElementById("selectModalidad")?.addEventListener("change", actualizarInfoModalidadSeleccionada);
@@ -1427,8 +1600,9 @@ function setupEventListeners() {
   document.getElementById("btnIrAConsultaCompra")?.addEventListener("click", () => {
     cerrarModal();
     if (state.compraActual) {
-      mostrarPestaña("consultaCompraView");
-      buscarCompra(state.compraActual.id);
+      window.location.hash = `#consulta-compra?id=${state.compraActual.id}`;
+    } else {
+      window.location.hash = "#consulta-compra";
     }
   });
 }
