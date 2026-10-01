@@ -1,7 +1,7 @@
 # TP Integrador — Sistema de Venta y Validación de Entradas para Eventos
 
 **Materia:** Programación 1 — UCSE  
-**Tecnologías:** C# / .NET 8, ASP.NET Core Web API, NUnit, Persistencia JSON compartida en disco, HTML5, CSS3, JavaScript nativo (Vanilla JS), Leaflet / OpenStreetMap.
+**Tecnologías:** C# / .NET 8, ASP.NET Core Web API, NUnit (19 pruebas en verde), Persistencia JSON compartida en disco, HTML5, CSS3, JavaScript nativo (Vanilla JS SPA con Hash Routing), Google Maps (Calles / Satélite).
 
 ---
 
@@ -13,8 +13,9 @@ El sistema reemplaza la gestión tradicional de venta de entradas con Excel y Wh
    - Catálogo y administración de eventos y sus modalidades de entrada.
    - Venta de entradas asociadas al DNI del comprador, con cálculo automático de **descuento por volumen del 15% para compras de 5 o más entradas** de la misma modalidad.
    - Generación de **entradas individuales con códigos únicos alfanuméricos de 6 dígitos** (sin colisiones).
-   - Reportes de recaudación y entradas vendidas por evento.
+   - Reportes de recaudación y entradas vendidas por evento con desglose por modalidad y listado de compradores.
    - Endpoint de promoción: **Cancelación de entradas individuales** (`DELETE /api/entradas/{codigo}`) restaurando el cupo de la modalidad.
+   - Endpoint de cancelación de modalidades y eventos completos por organizadores.
    - Documentación interactiva con **Swagger UI**.
 
 2. **API de Validación en Puerta (`ApiValidacion` - Puerto 5002):**
@@ -23,12 +24,13 @@ El sistema reemplaza la gestión tradicional de venta de entradas con Excel y Wh
    - Sincronización inmediata contra los mismos archivos en disco.
 
 3. **Frontend Web (`CarpetaFrontend`):**
-   - Aplicación responsiva construida con HTML, CSS y JavaScript nativo (sin frameworks).
+   - Aplicación responsiva construida con HTML5, CSS3 y JavaScript nativo (sin frameworks).
+   - **Arquitectura SPA con Hash Routing (`#...`):** URLs independientes por vista (`#catalogo`, `#evento={id}`, `#consulta-compra`, `#control-acceso`, `#gestion-eventos`, `#reporte-recaudacion`) con soporte completo para historial del navegador (`Atrás`/`Adelante`) y enlaces directos (*deep linking*).
    - Selector dinámico de usuario activo basado en DNI y validación de roles (**Organizador** vs. **Comprador**).
-   - Catálogo de eventos, vista de detalle con **mapa interactivo geográfico (Leaflet)**.
-   - Pantalla de **Control de Acceso (Puerta)** con semáforo visual grande (Verde / Rojo).
+   - Catálogo de eventos, vista de detalle con **mapa interactivo de Google Maps (Calles / Satélite sin API Key ni marcas de agua)** y enlace directo a Google Maps.
+   - Pantalla de **Control de Acceso (Puerta)** con semáforo visual grande (Verde / Rojo) e historial de accesos.
    - Consulta de compras y gestión de estado de cada entrada individual.
-   - Panel de organizador para crear eventos, agregar modalidades, cancelar eventos y ver reporte de recaudación.
+   - Panel de organizador para crear eventos, selector de ubicación en mapa con buscador de direcciones, agregar modalidades, cancelar eventos o modalidades individuales y ver reporte de recaudación con detalle de compradores.
 
 ---
 
@@ -39,7 +41,7 @@ programacionTrabajo/
 ├── ApiGestion/                 # Solución 1: API de Gestión y Ventas
 │   ├── Api/                    # Web API ASP.NET Core (.NET 8, Swagger en :5001)
 │   ├── Clases/                 # Lógica de dominio, repositorios, generador de códigos
-│   ├── Testing/                # Pruebas unitarias NUnit de ApiGestion (9 tests en verde)
+│   ├── Testing/                # Pruebas unitarias NUnit de ApiGestion (12 tests en verde)
 │   └── Solucion.sln            # Solución Visual Studio de Gestión
 │
 ├── ApiValidacion/              # Solución 2: API de Validación en Puerta
@@ -48,10 +50,10 @@ programacionTrabajo/
 │   ├── Testing/                # Pruebas unitarias NUnit de ApiValidacion (7 tests en verde)
 │   └── Solucion.sln            # Solución Visual Studio de Validación
 │
-├── CarpetaFrontend/            # Frontend Web (Vanilla HTML/CSS/JS)
+├── CarpetaFrontend/            # Frontend Web (Vanilla HTML/CSS/JS SPA)
 │   ├── index.html              # Pantallas del sistema (Catálogo, Puerta, Compras, Admin)
 │   ├── styles.css              # Estilos modernos y responsivos
-│   └── app.js                  # Lógica cliente, consumo de ambas APIs y mapas Leaflet
+│   └── app.js                  # Lógica cliente, SPA Hash Router y mapas Google Maps
 │
 ├── data/                       # Almacenamiento compartido en disco (rutas relativas)
 │   ├── usuarios.json           # 10 usuarios precargados (2 Organizadores, 8 Compradores)
@@ -60,6 +62,7 @@ programacionTrabajo/
 │
 └── README.md                   # Documentación del proyecto
 ```
+
 
 ---
 
