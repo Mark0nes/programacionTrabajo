@@ -87,6 +87,7 @@ header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .logo-mark {
@@ -99,6 +100,7 @@ header {
   background: var(--primary);
   color: #ffffff;
   box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+  flex-shrink: 0;
 }
 
 .logo-title h1 {
@@ -915,9 +917,12 @@ main {
   overflow-x: auto;
   border: 1px solid var(--slate-200);
   border-radius: var(--radius);
+  background: #ffffff;
 }
 
-.styled-table {
+.styled-table,
+.table,
+.data-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
@@ -925,13 +930,20 @@ main {
 }
 
 .styled-table th,
-.styled-table td {
+.styled-table td,
+.table th,
+.table td,
+.data-table th,
+.data-table td {
   padding: 0.85rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--slate-200);
+  vertical-align: middle;
 }
 
-.styled-table th {
+.styled-table th,
+.table th,
+.data-table th {
   background-color: var(--slate-50);
   font-size: 0.75rem;
   font-weight: 600;
@@ -941,11 +953,15 @@ main {
   white-space: nowrap;
 }
 
-.styled-table tbody tr:last-child td {
+.styled-table tbody tr:last-child td,
+.table tbody tr:last-child td,
+.data-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.styled-table tbody tr:hover {
+.styled-table tbody tr:hover,
+.table tbody tr:hover,
+.data-table tbody tr:hover {
   background-color: var(--slate-50);
 }
 

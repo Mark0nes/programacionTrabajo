@@ -1387,13 +1387,16 @@ async function cargarReporteRecaudacion() {
 
     const reporte = await res.json();
 
-    document.getElementById("totalGeneralRecaudado").textContent = `$${reporte.totalGeneralRecaudado.toLocaleString('es-AR')}`;
-    document.getElementById("totalGeneralEntradas").textContent = reporte.totalGeneralEntradasVendidas;
+    const totalRecaudado = Number(reporte.totalGeneralRecaudado || 0);
+    const totalEntradas = reporte.totalGeneralEntradasVendidas || 0;
+
+    document.getElementById("totalGeneralRecaudado").textContent = `$${totalRecaudado.toLocaleString('es-AR')}`;
+    document.getElementById("totalGeneralEntradas").textContent = totalEntradas;
 
     tbody.innerHTML = "";
 
-    if (reporte.eventos.length === 0) {
-      tbody.innerHTML = "<tr><td colspan='8' style='text-align: center;'>No hay eventos registrados.</td></tr>";
+    if (!reporte.eventos || reporte.eventos.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='8' style='text-align: center; color: var(--slate-400);'>No hay eventos registrados.</td></tr>";
       return;
     }
 
@@ -1408,19 +1411,27 @@ async function cargarReporteRecaudacion() {
         estadoHtml = `<span class="badge badge-secondary">Finalizado</span>`;
       }
 
-      let modHtml = ev.modalidades.map(m => `
-        <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
-          <strong>${m.nombreModalidad}:</strong> ${m.entradasVendidas} vendidas ($${m.recaudado.toLocaleString('es-AR')})
-        </div>
-      `).join('');
+      const modalidades = ev.modalidades || [];
+      let modHtml = modalidades.map(m => {
+        const monto = Number(m.recaudacion ?? m.recaudado ?? 0);
+        return `
+          <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
+            <strong>${m.nombreModalidad}:</strong> ${m.entradasVendidas ?? 0} vendidas ($${monto.toLocaleString('es-AR')})
+          </div>
+        `;
+      }).join('');
 
       let compradoresHtml = "-";
-      if (ev.compradores && ev.compradores.length > 0) {
-        compradoresHtml = ev.compradores.map(c => `
-          <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
-            <strong>${c.nombre}</strong> <small style="color: var(--slate-500);">(${c.cantidadEntradas} ent. - $${c.total.toLocaleString('es-AR')})</small>
-          </div>
-        `).join('');
+      const compradores = ev.compradores || [];
+      if (compradores.length > 0) {
+        compradoresHtml = compradores.map(c => {
+          const tot = Number(c.total || 0);
+          return `
+            <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
+              <strong>${c.nombre}</strong> <small style="color: var(--slate-500);">(${c.cantidadEntradas ?? 0} ent. - $${tot.toLocaleString('es-AR')})</small>
+            </div>
+          `;
+        }).join('');
       } else {
         compradoresHtml = `<span style="color: var(--slate-400); font-size: 0.8rem; font-style: italic;">Sin compradores</span>`;
       }
@@ -1429,12 +1440,14 @@ async function cargarReporteRecaudacion() {
         ? `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`
         : `<span style="color: var(--slate-400); font-size: 0.8rem;">Cancelado</span>`;
 
+      const evRecaudacion = Number(ev.recaudacionTotal || 0);
+
       tr.innerHTML = `
         <td><strong>${ev.nombreEvento}</strong><br><small style="color: var(--slate-500);">${ev.lugar}</small></td>
         <td>${new Date(ev.fecha).toLocaleDateString('es-AR')}</td>
         <td>${estadoHtml}</td>
-        <td><strong>${ev.entradasVendidas}</strong></td>
-        <td><strong style="color: var(--primary);">$${ev.recaudacionTotal.toLocaleString('es-AR')}</strong></td>
+        <td><strong>${ev.entradasVendidas ?? 0}</strong></td>
+        <td><strong style="color: var(--primary);">$${evRecaudacion.toLocaleString('es-AR')}</strong></td>
         <td>${modHtml || "-"}</td>
         <td>${compradoresHtml}</td>
         <td>${btnCancelarHtml}</td>
