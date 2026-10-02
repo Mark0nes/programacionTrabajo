@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TicketFlow - Control de Acceso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="logo-area">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path>
+            <path d="M13 5v2"></path>
+            <path d="M13 17v2"></path>
+            <path d="M13 11v2"></path>
+          </svg>
+        </div>
+        <div class="logo-title">
+          <h1>TicketFlow</h1>
+          <span class="logo-subtitle">Plataforma de Entradas</span>
+        </div>
+      </div>
+
+      <div class="user-selector-box">
+        <span class="user-selector-label">Usuario activo:</span>
+        <select id="userSelect" aria-label="Seleccionar usuario activo">
+          <option value="">Cargando usuarios...</option>
+        </select>
+        <span id="userRoleBadge" class="role-badge role-organizador">Organizador</span>
+      </div>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Navegacion principal">
+      <a href="index.html" class="tab-btn">Catalogo de Eventos</a>
+      <a href="consultar-compra.html" class="tab-btn">Consultar Compra</a>
+      <a href="control-acceso.html" class="tab-btn active role-organizador-only" style="display: none;">Control de Acceso</a>
+      <a href="gestion-eventos.html" class="tab-btn role-organizador-only" style="display: none;">Gestion de Eventos</a>
+      <a href="reporte-recaudacion.html" class="tab-btn role-organizador-only" style="display: none;">Reporte de Recaudacion</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section-view">
+      <div class="card" style="margin-bottom: 2rem;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Validacion de Entradas en Puerta</h2>
+            <p class="card-subtitle">Verificacion inmediata e individual de entradas contra la API de Validacion (:5002).</p>
+          </div>
+        </div>
+
+        <div style="max-width: 600px; margin: 0 auto; padding: 1rem 0;">
+          <div class="form-group">
+            <label for="puertaEventoSelect">Evento a controlar:</label>
+            <select id="puertaEventoSelect" class="form-control">
+              <option value="">Cualquier evento (autodetectar)</option>
+            </select>
+            <small style="color: var(--slate-500); display: block; margin-top: 0.25rem;">
+              Opcional. Si seleccionas un evento puntual, se rechazaran entradas pertenecientes a otros eventos.
+            </small>
+          </div>
+
+          <div class="form-group" style="margin-top: 1.25rem;">
+            <label for="doorTicketInput">Codigo de entrada (6 caracteres):</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="doorTicketInput" class="form-control font-mono" placeholder="Ej: AB12CD" maxlength="6" style="text-transform: uppercase; font-size: 1.15rem; letter-spacing: 0.1em;">
+              <button id="btnValidarEntrada" class="btn btn-primary" style="white-space: nowrap;">
+                Validar Ingreso
+              </button>
+            </div>
+          </div>
+
+          <!-- Resultado de la validacion -->
+          <div id="validationResultCard" class="validation-result-card" style="display: none; margin-top: 1.5rem;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Historial de validaciones recientes -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title" style="font-size: 1.1rem;">Historial de Validaciones Recientes</h3>
+            <p class="card-subtitle">Ultimas validaciones realizadas durante la sesion.</p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Codigo</th>
+                <th>Evento / Modalidad</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="historialValidacionesBody">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--slate-400);">No hay validaciones registradas todavia.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -10,7 +10,7 @@ public class CompraRepository
 
     public CompraRepository(string? rutaArchivo = null)
     {
-        _rutaArchivo = rutaArchivo ?? DataPathHelper.GetFilePath("compras.json");
+        _rutaArchivo = rutaArchivo ?? (Directory.Exists("data") ? "data/compras.json" : "../../data/compras.json");
     }
 
     public List<Compra> ObtenerCompras()

@@ -43,9 +43,7 @@ app.UseSwaggerUI(c =>
 
 app.UseCors();
 
-// -------------------------------------------------------------
-// Endpoint de validación de entradas
-// -------------------------------------------------------------
+// Endpoint de validacion de entradas
 app.MapPost("/api/validaciones", (ValidarEntradaDto dto, ValidadorEntradaService validador) =>
 {
     if (string.IsNullOrWhiteSpace(dto.Codigo))

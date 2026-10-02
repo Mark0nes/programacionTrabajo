@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TicketFlow - Gestion de Eventos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="logo-area">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path>
+            <path d="M13 5v2"></path>
+            <path d="M13 17v2"></path>
+            <path d="M13 11v2"></path>
+          </svg>
+        </div>
+        <div class="logo-title">
+          <h1>TicketFlow</h1>
+          <span class="logo-subtitle">Plataforma de Entradas</span>
+        </div>
+      </div>
+
+      <div class="user-selector-box">
+        <span class="user-selector-label">Usuario activo:</span>
+        <select id="userSelect" aria-label="Seleccionar usuario activo">
+          <option value="">Cargando usuarios...</option>
+        </select>
+        <span id="userRoleBadge" class="role-badge role-organizador">Organizador</span>
+      </div>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Navegacion principal">
+      <a href="index.html" class="tab-btn">Catalogo de Eventos</a>
+      <a href="consultar-compra.html" class="tab-btn">Consultar Compra</a>
+      <a href="control-acceso.html" class="tab-btn role-organizador-only" style="display: none;">Control de Acceso</a>
+      <a href="gestion-eventos.html" class="tab-btn active role-organizador-only" style="display: none;">Gestion de Eventos</a>
+      <a href="reporte-recaudacion.html" class="tab-btn role-organizador-only" style="display: none;">Reporte de Recaudacion</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section-view">
+      <div class="grid-2-cols" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        
+        <!-- Formulario Crear Evento -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Crear Nuevo Evento</h2>
+              <p class="card-subtitle">Publicar una nueva actividad en la cartelera.</p>
+            </div>
+          </div>
+
+          <form id="formCrearEvento">
+            <div class="form-group">
+              <label for="nuevoEventoNombre">Nombre del Evento *</label>
+              <input type="text" id="nuevoEventoNombre" class="form-control" required placeholder="Ej: Concierto Rock Nacional 2026">
+            </div>
+
+            <div class="form-group">
+              <label for="nuevoEventoDescripcion">Descripcion</label>
+              <textarea id="nuevoEventoDescripcion" class="form-control" rows="2" placeholder="Detalles de la presentacion, bandas invitadas, etc."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="nuevoEventoFecha">Fecha y Hora *</label>
+              <input type="datetime-local" id="nuevoEventoFecha" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label for="nuevoEventoLugar">Lugar / Direccion *</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="text" id="nuevoEventoLugar" class="form-control" required placeholder="Ej: Estadio Monumental, Av. Figueroa Alcorta 7597">
+                <button type="button" id="btnBuscarLugarMapa" class="btn btn-outline" style="white-space: nowrap;">
+                  Buscar en Mapa
+                </button>
+              </div>
+              <small style="color: var(--slate-500); display: block; margin-top: 0.35rem;">
+                Puedes escribir la direccion y pulsar "Buscar en Mapa", o hacer clic directamente sobre el mapa.
+              </small>
+            </div>
+
+            <!-- Mapa para ubicar el evento -->
+            <div class="form-group">
+              <label>Ubicacion Geografica en Mapa:</label>
+              <div id="mapaCrearEvento" style="height: 250px; width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--slate-300); margin-top: 0.25rem;"></div>
+            </div>
+
+            <!-- Coordenadas ocultas gestionadas por el mapa -->
+            <input type="hidden" id="nuevoEventoLatitud" value="-34.6037">
+            <input type="hidden" id="nuevoEventoLongitud" value="-58.3816">
+
+            <div style="margin-top: 1.25rem;">
+              <button type="submit" class="btn btn-primary btn-block">
+                Crear Evento
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Formulario Agregar Modalidad -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Agregar Modalidad de Entrada</h2>
+              <p class="card-subtitle">Asociar tipos de acceso, precios y cupos a un evento existente.</p>
+            </div>
+          </div>
+
+          <form id="formAgregarModalidad">
+            <div class="form-group">
+              <label for="modalidadEventoSelect">Seleccionar Evento *</label>
+              <select id="modalidadEventoSelect" class="form-control" required>
+                <option value="">Cargando eventos...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="modalidadNombre">Nombre de Modalidad *</label>
+              <input type="text" id="modalidadNombre" class="form-control" required placeholder="Ej: Campo General, Platea VIP, Anticipada">
+            </div>
+
+            <div class="grid-2-cols" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="form-group">
+                <label for="modalidadPrecio">Precio ($) *</label>
+                <input type="number" id="modalidadPrecio" class="form-control" required min="0" step="100" placeholder="Ej: 15000">
+              </div>
+
+              <div class="form-group">
+                <label for="modalidadCupo">Cupo Maximo *</label>
+                <input type="number" id="modalidadCupo" class="form-control" required min="1" placeholder="Ej: 500">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="modalidadBeneficios">Beneficios / Observaciones</label>
+              <textarea id="modalidadBeneficios" class="form-control" rows="3" placeholder="Ej: Acceso rapido preferencial + consumicion de cortesia"></textarea>
+            </div>
+
+            <div style="margin-top: 1.25rem;">
+              <button type="submit" class="btn btn-primary btn-block">
+                Agregar Modalidad
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Cancelacion de Eventos y Modalidades -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Cancelar Eventos y Modalidades</h2>
+            <p class="card-subtitle">Permite cancelar eventos enteros o modalidades individuales sin eliminar historicos de compras.</p>
+          </div>
+        </div>
+
+        <div style="max-width: 800px; margin-bottom: 1.5rem;">
+          <label for="cancelarEventoSelect">Selecciona un evento:</label>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem;">
+            <select id="cancelarEventoSelect" class="form-control" style="flex: 1;">
+              <option value="">Cargando eventos...</option>
+            </select>
+            <button type="button" id="btnCancelarEventoSeleccionado" class="btn btn-danger" style="white-space: nowrap;">
+              Cancelar Evento Completo
+            </button>
+          </div>
+          <small style="color: var(--slate-500); display: block; margin-top: 0.35rem;">
+            Al cancelar el evento completo, se cierran todas las ventas y no se admiten mas compras.
+          </small>
+        </div>
+
+        <h3 style="font-size: 1.05rem; margin-bottom: 0.75rem; color: var(--slate-800);">Modalidades del Evento</h3>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Modalidad</th>
+                <th>Precio</th>
+                <th>Cupo (Disponible / Max)</th>
+                <th>Estado</th>
+                <th>Accion</th>
+              </tr>
+            </thead>
+            <tbody id="tablaModalidadesCancelarBody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--slate-400);">Selecciona un evento arriba para ver sus modalidades.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

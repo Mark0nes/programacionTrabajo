@@ -1,12 +1,8 @@
-// =========================================================================
-// TicketFlow — Frontend JavaScript Nativo (Vanilla JS)
-// Consumo de ApiGestion (puerto 5001) y ApiValidacion (puerto 5002)
-// =========================================================================
-
+// Configuracion de endpoints de las dos APIs
 const API_GESTION = "http://localhost:5001/api";
 const API_VALIDACION = "http://localhost:5002/api";
 
-// Estado global de la aplicación
+// Estado global de la aplicacion
 const state = {
   usuarios: [],
   usuarioActivo: null,
@@ -20,142 +16,33 @@ const state = {
   markerCrearEvento: null
 };
 
-// =========================================================================
-// Mapeo de Rutas URL (Hash Routing) para Enlaces Independientes por Pestaña
-// =========================================================================
-const ROUTE_MAP = {
-  "#catalogo": "catalogoView",
-  "#consulta-compra": "consultaCompraView",
-  "#control-acceso": "puertaView",
-  "#gestion-eventos": "organizadorView",
-  "#reporte-recaudacion": "reporteView",
-  "#detalle": "detalleView"
-};
-
-const VIEW_TO_HASH = {
-  "catalogoView": "#catalogo",
-  "consultaCompraView": "#consulta-compra",
-  "puertaView": "#control-acceso",
-  "organizadorView": "#gestion-eventos",
-  "reporteView": "#reporte-recaudacion",
-  "detalleView": "#detalle"
-};
-
-// =========================================================================
-// Inicialización al cargar el DOM
-// =========================================================================
+// Inicializacion al cargar la pagina
 document.addEventListener("DOMContentLoaded", async () => {
-  setupNavigation();
-  setupEventListeners();
   await cargarUsuarios();
-  await cargarEventos();
-  sincronizarRutaConHash();
+  setupComun();
+
+  // Inicializar segun la pagina actual
+  if (document.getElementById("eventsGrid")) {
+    cargarEventos();
+  }
+  if (document.getElementById("panelCompraComprador")) {
+    cargarDetalleDesdeUrl();
+  }
+  if (document.getElementById("btnBuscarCompra")) {
+    inicializarConsultaCompra();
+  }
+  if (document.getElementById("doorTicketInput")) {
+    inicializarPuerta();
+  }
+  if (document.getElementById("formCrearEvento")) {
+    inicializarGestionEventos();
+  }
+  if (document.getElementById("reporteTableBody")) {
+    cargarReporteRecaudacion();
+  }
 });
 
-// =========================================================================
-// 1. Navegación por pestañas y control de permisos (SPA con Hash Routing)
-// =========================================================================
-function setupNavigation() {
-  window.addEventListener("hashchange", () => {
-    sincronizarRutaConHash();
-  });
-
-  const tabs = document.querySelectorAll(".tab-btn");
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      const hash = tab.getAttribute("href");
-      if (window.location.hash === hash) {
-        sincronizarRutaConHash();
-      }
-    });
-  });
-}
-
-function sincronizarRutaConHash() {
-  const rawHash = window.location.hash || "#catalogo";
-  const hash = rawHash.split("?")[0];
-  const query = rawHash.includes("?") ? rawHash.split("?")[1] : "";
-
-  // 1. Detalle de Evento: #evento=UUID o #evento/UUID o #detalle?id=UUID
-  if (rawHash.startsWith("#evento=") || rawHash.startsWith("#evento/")) {
-    const id = rawHash.startsWith("#evento=") ? rawHash.replace("#evento=", "") : rawHash.replace("#evento/", "");
-    const eventoId = decodeURIComponent(id).trim();
-    if (eventoId) {
-      cargarDetalleEvento(eventoId);
-      return;
-    }
-  }
-  if (hash === "#detalle") {
-    const urlParams = new URLSearchParams(query);
-    const eventoId = urlParams.get("id");
-    if (eventoId) {
-      cargarDetalleEvento(eventoId);
-      return;
-    } else if (state.eventoSeleccionado) {
-      cargarDetalleEvento(state.eventoSeleccionado.id);
-      return;
-    }
-  }
-
-  // 2. Consulta de Compra con ID directo: #consulta-compra?id=UUID
-  if (hash === "#consulta-compra") {
-    activarVista("consultaCompraView");
-    const urlParams = new URLSearchParams(query);
-    const compraId = urlParams.get("id");
-    if (compraId) {
-      buscarCompra(compraId, false);
-    }
-    return;
-  }
-
-  // 3. Rutas fijas generales
-  const targetId = ROUTE_MAP[hash] || "catalogoView";
-  activarVista(targetId);
-}
-
-function activarVista(targetId) {
-  // Regla de seguridad: Vistas administrativas exclusivas para Organizadores
-  const vistasExclusivasOrganizador = ["puertaView", "organizadorView", "reporteView"];
-  if (vistasExclusivasOrganizador.includes(targetId) && state.usuarioActivo?.rol !== "Organizador") {
-    window.location.hash = "#catalogo";
-    return;
-  }
-
-  document.querySelectorAll(".tab-btn").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".section-view").forEach(s => s.classList.remove("active"));
-
-  // Si estamos en detalle de evento, mantener encendida la pestaña de Catálogo
-  const tabSelector = targetId === "detalleView" ? `[data-tab="catalogoView"]` : `[data-tab="${targetId}"]`;
-  const targetTab = document.querySelector(`.tab-btn${tabSelector}`);
-  const targetSection = document.getElementById(targetId);
-
-  if (targetTab) targetTab.classList.add("active");
-  if (targetSection) targetSection.classList.add("active");
-
-  if (targetId === "reporteView" && state.usuarioActivo?.rol === "Organizador") {
-    cargarReporteRecaudacion();
-  } else if (targetId === "consultaCompraView") {
-    actualizarMisComprasRapidas();
-  } else if (targetId === "organizadorView" && state.usuarioActivo?.rol === "Organizador") {
-    inicializarMapaCrearEvento();
-    renderizarModalidadesParaCancelar();
-  }
-}
-
-function mostrarPestaña(targetId, actualizarHash = true) {
-  if (actualizarHash) {
-    const hash = VIEW_TO_HASH[targetId] || "#catalogo";
-    if (window.location.hash !== hash) {
-      window.location.hash = hash;
-      return;
-    }
-  }
-  activarVista(targetId);
-}
-
-// =========================================================================
-// 2. Gestión de Usuarios y Roles
-// =========================================================================
+// Carga de usuarios y manejo del usuario activo
 async function cargarUsuarios() {
   try {
     const res = await fetch(`${API_GESTION}/usuarios`);
@@ -163,16 +50,17 @@ async function cargarUsuarios() {
     state.usuarios = await res.json();
 
     const select = document.getElementById("userSelect");
-    select.innerHTML = "";
+    if (!select) return;
 
-    state.usuarios.forEach((u) => {
+    select.innerHTML = "";
+    state.usuarios.forEach(u => {
       const opt = document.createElement("option");
       opt.value = u.dni;
-      opt.textContent = `${u.nombre} (${u.rol}) — DNI: ${u.dni}`;
+      opt.textContent = `${u.nombre} (${u.rol}) - DNI: ${u.dni}`;
       select.appendChild(opt);
     });
 
-    // Restaurar usuario preferido o tomar el primero
+    // Recuperar usuario guardado en localStorage o usar el primero
     const savedDni = localStorage.getItem("ticketflow_user_dni");
     const userToSelect = state.usuarios.find(u => u.dni.toString() === savedDni) || state.usuarios[0];
 
@@ -190,7 +78,10 @@ async function cargarUsuarios() {
 
   } catch (err) {
     console.error("Error al cargar usuarios:", err);
-    document.getElementById("userSelect").innerHTML = "<option>Error al conectar con ApiGestion (:5001)</option>";
+    const select = document.getElementById("userSelect");
+    if (select) {
+      select.innerHTML = "<option>Error al conectar con ApiGestion (:5001)</option>";
+    }
   }
 }
 
@@ -198,72 +89,69 @@ function seleccionarUsuario(usuario) {
   state.usuarioActivo = usuario;
   localStorage.setItem("ticketflow_user_dni", usuario.dni);
 
-  // Actualizar badge de rol en encabezado
+  // Actualizar badge de rol en el encabezado
   const badge = document.getElementById("userRoleBadge");
-  badge.textContent = usuario.rol;
-  badge.className = `role-badge role-${usuario.rol.toLowerCase()}`;
+  if (badge) {
+    badge.textContent = usuario.rol;
+    badge.className = `role-badge role-${usuario.rol.toLowerCase()}`;
+  }
 
-  // Ajustar visibilidad de pestañas y botones según el rol
+  // Controlar visibilidad de enlaces segun el rol
   const organizadorElements = document.querySelectorAll(".role-organizador-only");
-  const panelCompra = document.getElementById("panelCompraComprador");
-  const panelOrganizadorAviso = document.getElementById("panelCompraOrganizadorAviso");
+  const compradorElements = document.querySelectorAll(".role-comprador-only");
 
   if (usuario.rol === "Organizador") {
-    organizadorElements.forEach(el => el.style.display = "inline-flex");
-    if (panelCompra) panelCompra.style.display = "none";
-    if (panelOrganizadorAviso) panelOrganizadorAviso.style.display = "block";
+    organizadorElements.forEach(el => el.style.display = "");
+    compradorElements.forEach(el => el.style.display = "none");
   } else {
     organizadorElements.forEach(el => el.style.display = "none");
-    if (panelCompra) panelCompra.style.display = "block";
-    if (panelOrganizadorAviso) panelOrganizadorAviso.style.display = "none";
+    compradorElements.forEach(el => el.style.display = "");
 
-    // Si el usuario estaba en una pestaña restringida (Puerta, Gestión o Reporte), redirigir al catálogo
-    const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab;
-    if (activeTab === "organizadorView" || activeTab === "reporteView" || activeTab === "puertaView") {
-      window.location.hash = "#catalogo";
+    // Si el usuario es Comprador y esta en una pagina exclusiva de Organizador, redirigir al catalogo
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes("control-acceso") || path.includes("gestion-eventos") || path.includes("reporte-recaudacion")) {
+      alert("Acceso denegado: Esta seccion es exclusiva para organizadores.");
+      window.location.href = "index.html";
+      return;
     }
   }
 
-  // Aislamiento de seguridad: limpiar de pantalla las compras y entradas de la cuenta anterior
-  limpiarVistaDetalleCompra();
-
-  // Actualizar compras rápidas del nuevo usuario activo
-  actualizarMisComprasRapidas();
-
-  // Actualizar botones del catálogo para reflejar textos según el rol actual
-  renderizarCatalogo();
+  // Refrescar vistas segun la pagina actual
+  if (document.getElementById("eventsGrid")) {
+    renderizarCatalogo();
+  }
+  if (document.getElementById("misComprasBotones")) {
+    actualizarMisComprasRapidas();
+  }
+  if (document.getElementById("selectModalidad")) {
+    actualizarInfoModalidadSeleccionada();
+  }
 }
 
-function limpiarVistaDetalleCompra() {
-  const detalleResultado = document.getElementById("detalleCompraResultado");
-  if (detalleResultado) detalleResultado.style.display = "none";
-
-  const inputBuscar = document.getElementById("inputBuscarCompraId");
-  if (inputBuscar) inputBuscar.value = "";
-
-  state.compraActual = null;
+function setupComun() {
+  document.getElementById("btnRefrescarEventos")?.addEventListener("click", cargarEventos);
 }
 
-// =========================================================================
-// 3. Catálogo de Eventos
-// =========================================================================
+// -------------------------------------------------------------
+// Catalogo de Eventos (index.html / eventos.html)
+// -------------------------------------------------------------
 async function cargarEventos() {
   const container = document.getElementById("eventsGrid");
+  if (!container) return;
+
   container.innerHTML = "<p class='loading-state'>Cargando eventos...</p>";
 
   try {
     const res = await fetch(`${API_GESTION}/eventos`);
     if (!res.ok) throw new Error("Error al obtener eventos.");
     state.eventos = await res.json();
-
-    actualizarSelectsEventos();
     renderizarCatalogo();
   } catch (err) {
     console.error("Error al cargar eventos:", err);
     container.innerHTML = `
       <div style="grid-column: 1/-1; padding: 2rem; text-align: center; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 8px;">
         <h3 style="color: #be123c;">No se pudo conectar con ApiGestion</h3>
-        <p style="color: #4b5563; margin-top: 0.5rem;">Asegúrese de que ApiGestion esté ejecutándose en <strong>http://localhost:5001</strong>.</p>
+        <p style="color: #4b5563; margin-top: 0.5rem;">Asegurese de que ApiGestion este ejecutandose en http://localhost:5001.</p>
         <button onclick="cargarEventos()" class="btn btn-outline" style="margin-top: 1rem;">Reintentar</button>
       </div>`;
   }
@@ -271,6 +159,8 @@ async function cargarEventos() {
 
 function renderizarCatalogo() {
   const container = document.getElementById("eventsGrid");
+  if (!container) return;
+
   container.innerHTML = "";
 
   if (state.eventos.length === 0) {
@@ -290,10 +180,6 @@ function renderizarCatalogo() {
       statusBadge = `<span class="badge badge-secondary">Finalizado</span>`;
     }
 
-    const card = document.createElement("div");
-    card.className = "event-card";
-
-    // Vista previa de modalidades
     let modalidadesHtml = "";
     if (ev.modalidades && ev.modalidades.length > 0) {
       modalidadesHtml = `
@@ -308,7 +194,17 @@ function renderizarCatalogo() {
         </div>
       `;
     } else {
-      modalidadesHtml = `<p style="font-size: 0.825rem; color: var(--slate-500); font-style: italic;">Sin modalidades cargadas aún.</p>`;
+      modalidadesHtml = `<p style="font-size: 0.825rem; color: var(--slate-500); font-style: italic;">Sin modalidades cargadas aun.</p>`;
+    }
+
+    const card = document.createElement("div");
+    card.className = "event-card";
+
+    let textoBoton = "Ver Detalle";
+    if (state.usuarioActivo?.rol === "Comprador") {
+      if (ev.cancelado) textoBoton = "Evento Cancelado";
+      else if (esPasado) textoBoton = "Evento Finalizado";
+      else textoBoton = "Comprar Entradas";
     }
 
     card.innerHTML = `
@@ -339,77 +235,62 @@ function renderizarCatalogo() {
           </span>
           <span>${ev.lugar}</span>
         </div>
-        <p class="event-description">${ev.descripcion || "Sin descripción adicional."}</p>
+        <p class="event-description">${ev.descripcion || "Sin descripcion adicional."}</p>
         ${modalidadesHtml}
       </div>
       <div class="event-card-footer" style="display: flex; gap: 0.5rem;">
-        <a href="#evento=${ev.id}" class="btn ${ev.cancelado || esPasado ? 'btn-outline' : 'btn-primary'} btn-block btn-ver-detalle" data-id="${ev.id}">
-          ${state.usuarioActivo?.rol === "Comprador" ? (ev.cancelado ? "Evento Cancelado" : (esPasado ? "Evento Finalizado" : "Comprar Entradas")) : "Ver Detalle"}
+        <a href="comprar-entrada.html?id=${ev.id}" class="btn ${ev.cancelado || esPasado ? 'btn-outline' : 'btn-primary'} btn-block">
+          ${textoBoton}
         </a>
         ${state.usuarioActivo?.rol === "Organizador" && !ev.cancelado ? `
           <button type="button" class="btn btn-danger btn-sm btn-cancelar-card" data-id="${ev.id}" data-nombre="${ev.nombre}" title="Cancelar Evento">
-            🚫
+            Cancelar
           </button>
         ` : ''}
       </div>
     `;
 
-    card.querySelector(".btn-ver-detalle").addEventListener("click", () => {
-      if (window.location.hash === `#evento=${ev.id}`) {
-        cargarDetalleEvento(ev.id);
-      }
-    });
-
-    const btnCancCard = card.querySelector(".btn-cancelar-card");
-    if (btnCancCard) {
-      btnCancCard.addEventListener("click", (e) => {
-        e.stopPropagation();
-        cancelarEvento(ev.id, ev.nombre);
-      });
+    const btnCanc = card.querySelector(".btn-cancelar-card");
+    if (btnCanc) {
+      btnCanc.addEventListener("click", () => cancelarEvento(ev.id, ev.nombre));
     }
 
     container.appendChild(card);
   });
 }
 
-// =========================================================================
-// 4. Detalle de Evento, Mapa Interactivo y Compra
-// =========================================================================
-function abrirDetalleEvento(eventoId) {
-  const hashDestino = `#evento=${eventoId}`;
-  if (window.location.hash === hashDestino) {
-    cargarDetalleEvento(eventoId);
-  } else {
-    window.location.hash = hashDestino;
-  }
-}
+// -------------------------------------------------------------
+// Detalle de Evento y Compra (comprar-entrada.html)
+// -------------------------------------------------------------
+async function cargarDetalleDesdeUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const eventoId = params.get("id");
 
-function cargarDetalleEvento(eventoId) {
-  const evento = state.eventos.find(e => e.id === eventoId);
-  if (!evento) {
-    if (state.eventos.length === 0) {
-      cargarEventos().then(() => {
-        const ev = state.eventos.find(e => e.id === eventoId);
-        if (ev) {
-          cargarDetalleEvento(eventoId);
-        } else {
-          window.location.hash = "#catalogo";
-        }
-      });
-      return;
-    }
-    window.location.hash = "#catalogo";
+  if (!eventoId) {
+    alert("No se especifico el ID del evento.");
+    window.location.href = "index.html";
     return;
   }
 
-  state.eventoSeleccionado = evento;
+  try {
+    const res = await fetch(`${API_GESTION}/eventos/${eventoId}`);
+    if (!res.ok) throw new Error("Evento no encontrado.");
+    const evento = await res.json();
+    state.eventoSeleccionado = evento;
+    renderDetalleEvento(evento);
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+    window.location.href = "index.html";
+  }
+}
 
+function renderDetalleEvento(evento) {
   const fecha = new Date(evento.fecha);
   const fechaFormat = fecha.toLocaleDateString("es-AR", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   const esPasado = fecha < new Date();
 
   document.getElementById("detalleTitulo").textContent = evento.nombre;
-  document.getElementById("detalleDescripcion").textContent = evento.descripcion || "Sin descripción.";
+  document.getElementById("detalleDescripcion").textContent = evento.descripcion || "Sin descripcion.";
   document.getElementById("detalleFecha").textContent = fechaFormat;
   document.getElementById("detalleLugar").textContent = evento.lugar;
 
@@ -425,18 +306,18 @@ function cargarDetalleEvento(eventoId) {
     badge.className = "badge badge-success";
   }
 
-  // Botón para cancelar evento completo desde el detalle (Organizador)
-  const btnCancEvDetalle = document.getElementById("btnCancelarEventoDetalle");
-  if (btnCancEvDetalle) {
+  // Boton para cancelar evento completo (Organizador)
+  const btnCancEv = document.getElementById("btnCancelarEventoDetalle");
+  if (btnCancEv) {
     if (state.usuarioActivo?.rol === "Organizador" && !evento.cancelado) {
-      btnCancEvDetalle.style.display = "inline-flex";
-      btnCancEvDetalle.onclick = () => cancelarEvento(evento.id, evento.nombre);
+      btnCancEv.style.display = "inline-flex";
+      btnCancEv.onclick = () => cancelarEvento(evento.id, evento.nombre);
     } else {
-      btnCancEvDetalle.style.display = "none";
+      btnCancEv.style.display = "none";
     }
   }
 
-  // Banner de advertencia si no admite compra
+  // Aviso visual si el evento no admite compras
   const aviso = document.getElementById("avisoEventoNoDisponible");
   if (aviso) {
     if (evento.cancelado) {
@@ -444,13 +325,13 @@ function cargarDetalleEvento(eventoId) {
       aviso.style.background = "#fee2e2";
       aviso.style.color = "#991b1b";
       aviso.style.border = "1px solid #f87171";
-      aviso.innerHTML = "🚫 <strong>Evento cancelado:</strong> La venta de entradas se encuentra cerrada.";
+      aviso.innerHTML = "<strong>Evento cancelado:</strong> La venta de entradas se encuentra cerrada.";
     } else if (esPasado) {
       aviso.style.display = "block";
       aviso.style.background = "#f1f5f9";
       aviso.style.color = "#475569";
       aviso.style.border = "1px solid #cbd5e1";
-      aviso.innerHTML = "⏳ <strong>Evento finalizado:</strong> La fecha de este evento ya pasó. No se pueden comprar entradas.";
+      aviso.innerHTML = "<strong>Evento finalizado:</strong> La fecha de este evento ya paso. No se pueden comprar entradas.";
     } else {
       aviso.style.display = "none";
     }
@@ -465,7 +346,7 @@ function cargarDetalleEvento(eventoId) {
       const opt = document.createElement("option");
       opt.value = m.id;
       const estadoTxt = m.cancelada ? ' [CANCELADA]' : ` (Disponibles: ${m.cupoDisponible})`;
-      opt.textContent = `${m.nombre} — $${m.precio.toLocaleString('es-AR')}${estadoTxt}`;
+      opt.textContent = `${m.nombre} - $${m.precio.toLocaleString('es-AR')}${estadoTxt}`;
       if ((m.cancelada || esPasado || evento.cancelado) && state.usuarioActivo?.rol === "Comprador") {
         opt.disabled = true;
       }
@@ -477,60 +358,36 @@ function cargarDetalleEvento(eventoId) {
     document.getElementById("modalidadInfoBox").style.display = "none";
   }
 
-  if (selectMod) {
-    selectMod.disabled = (evento.cancelado || esPasado) && state.usuarioActivo?.rol === "Comprador";
-  }
+  selectMod.disabled = (evento.cancelado || esPasado) && state.usuarioActivo?.rol === "Comprador";
   const inputCant = document.getElementById("inputCantidad");
   if (inputCant) {
     inputCant.disabled = (evento.cancelado || esPasado) && state.usuarioActivo?.rol === "Comprador";
   }
 
-  // Botón externo de Google Maps en detalle
+  // Enlace a Google Maps externo
   const btnGmaps = document.getElementById("btnAbrirGoogleMapsExt");
   if (btnGmaps) {
-    const latGmaps = evento.latitud || -34.6037;
-    const lngGmaps = evento.longitud || -58.3816;
-    btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${latGmaps},${lngGmaps}`;
+    const lat = evento.latitud || -34.6037;
+    const lng = evento.longitud || -58.3816;
+    btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   }
 
-  // Inicializar o centrar Mapa Interactivo con Google Maps
+  // Renderizar mapa interactivo
   renderizarMapa(evento.latitud, evento.longitud, evento.nombre, evento.lugar);
 
-  // Resetear cantidad y calcular precio
-  document.getElementById("inputCantidad").value = 1;
+  // Listeners del panel de compra
+  selectMod.onchange = actualizarInfoModalidadSeleccionada;
+  if (inputCant) inputCant.oninput = calcularPrecioCompra;
+
+  const btnConfirmar = document.getElementById("btnConfirmarCompra");
+  if (btnConfirmar) btnConfirmar.onclick = procesarCompra;
+
   calcularPrecioCompra();
-
-  activarVista("detalleView");
-}
-
-// Configuración de capas base sin API key (Google Maps estándar y Google Satélite)
-function obtenerCapasBaseMapa() {
-  const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: '&copy; Google Maps'
-  });
-
-  const googleSatelite = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: '&copy; Google Maps'
-  });
-
-  return {
-    capas: {
-      "Google Maps (Calles)": googleCalles,
-      "Google Maps (Satélite)": googleSatelite
-    },
-    predeterminada: googleCalles
-  };
 }
 
 function renderizarMapa(lat, lng, titulo, lugar) {
-  // Coordenadas por defecto (Obelisco, Buenos Aires) si no están provistas
   const defaultLat = -34.6037;
   const defaultLng = -58.3816;
-
   const finalLat = (lat !== null && lat !== undefined && !isNaN(lat)) ? lat : defaultLat;
   const finalLng = (lng !== null && lng !== undefined && !isNaN(lng)) ? lng : defaultLng;
 
@@ -541,9 +398,17 @@ function renderizarMapa(lat, lng, titulo, lugar) {
     if (!state.leafletMap) {
       state.leafletMap = L.map('mapContainer', { attributionControl: false }).setView([finalLat, finalLng], 15);
 
-      const baseLayers = obtenerCapasBaseMapa();
-      baseLayers.predeterminada.addTo(state.leafletMap);
-      L.control.layers(baseLayers.capas, null, { position: 'topright' }).addTo(state.leafletMap);
+      const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+      const googleSatelite = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+
+      googleCalles.addTo(state.leafletMap);
+      L.control.layers({ "Google Maps (Calles)": googleCalles, "Google Maps (Satelite)": googleSatelite }, null, { position: 'topright' }).addTo(state.leafletMap);
     } else {
       state.leafletMap.invalidateSize();
       state.leafletMap.setView([finalLat, finalLng], 15);
@@ -556,11 +421,11 @@ function renderizarMapa(lat, lng, titulo, lugar) {
     const gmapsLink = `https://www.google.com/maps/search/?api=1&query=${finalLat},${finalLng}`;
     state.mapMarker = L.marker([finalLat, finalLng]).addTo(state.leafletMap);
     state.mapMarker.bindPopup(`
-      <div style="min-width: 190px; padding: 2px;">
-        <strong style="font-size: 0.95rem; color: #1e293b;">${titulo}</strong><br>
+      <div style="min-width: 180px; padding: 2px;">
+        <strong>${titulo}</strong><br>
         <span style="color: #64748b; font-size: 0.825rem; display: block; margin: 0.25rem 0;">${lugar}</span>
-        <a href="${gmapsLink}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: 600; font-size: 0.8rem; text-decoration: underline; display: inline-flex; align-items: center; gap: 4px; margin-top: 0.25rem;">
-          🗺️ Abrir en Google Maps ↗
+        <a href="${gmapsLink}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: 600; font-size: 0.8rem; text-decoration: underline;">
+          Abrir en Google Maps
         </a>
       </div>
     `).openPopup();
@@ -569,16 +434,18 @@ function renderizarMapa(lat, lng, titulo, lugar) {
 
 function actualizarInfoModalidadSeleccionada() {
   const selectMod = document.getElementById("selectModalidad");
+  if (!selectMod) return;
+
   const modId = selectMod.value;
   const modalidad = state.eventoSeleccionado?.modalidades?.find(m => m.id === modId);
-
   const box = document.getElementById("modalidadInfoBox");
+
   if (!modalidad) {
-    box.style.display = "none";
+    if (box) box.style.display = "none";
     return;
   }
 
-  box.style.display = "block";
+  if (box) box.style.display = "block";
   document.getElementById("modInfoNombre").textContent = modalidad.nombre;
   document.getElementById("modInfoBeneficios").textContent = modalidad.beneficios || "Sin beneficios especiales.";
   document.getElementById("modInfoCupo").textContent = modalidad.cupoDisponible;
@@ -586,13 +453,8 @@ function actualizarInfoModalidadSeleccionada() {
 
   const badgeEstado = document.getElementById("modInfoBadgeEstado");
   if (badgeEstado) {
-    if (modalidad.cancelada) {
-      badgeEstado.textContent = "Cancelada";
-      badgeEstado.className = "badge badge-danger";
-    } else {
-      badgeEstado.textContent = "Activa";
-      badgeEstado.className = "badge badge-success";
-    }
+    badgeEstado.textContent = modalidad.cancelada ? "Cancelada" : "Activa";
+    badgeEstado.className = modalidad.cancelada ? "badge badge-danger" : "badge badge-success";
   }
 
   const boxCancMod = document.getElementById("boxCancelarModalidadDetalle");
@@ -637,9 +499,12 @@ function actualizarInfoModalidadSeleccionada() {
 
 function calcularPrecioCompra() {
   const selectMod = document.getElementById("selectModalidad");
+  if (!selectMod) return;
+
   const modId = selectMod.value;
   const modalidad = state.eventoSeleccionado?.modalidades?.find(m => m.id === modId);
-  const cantidad = parseInt(document.getElementById("inputCantidad").value, 10) || 1;
+  const inputCant = document.getElementById("inputCantidad");
+  const cantidad = parseInt(inputCant?.value, 10) || 1;
 
   if (!modalidad) return;
 
@@ -648,15 +513,17 @@ function calcularPrecioCompra() {
   let tieneDescuento = false;
   let montoDescuento = 0;
 
-  // Regla de negocio: si compra 5 entradas o más, 15% de descuento
+  // Descuento del 15% para 5 o mas entradas
   if (cantidad >= 5) {
     tieneDescuento = true;
     montoDescuento = Math.round(subtotal * 0.15);
     total = subtotal - montoDescuento;
   }
 
-  document.getElementById("discountBanner").style.display = tieneDescuento ? "flex" : "none";
-  document.getElementById("filaDescuento").style.display = tieneDescuento ? "flex" : "none";
+  const bannerDesc = document.getElementById("discountBanner");
+  const filaDesc = document.getElementById("filaDescuento");
+  if (bannerDesc) bannerDesc.style.display = tieneDescuento ? "flex" : "none";
+  if (filaDesc) filaDesc.style.display = tieneDescuento ? "flex" : "none";
 
   document.getElementById("resumenSubtotal").textContent = `$${subtotal.toLocaleString('es-AR')}`;
   document.getElementById("resumenDescuento").textContent = `-$${montoDescuento.toLocaleString('es-AR')}`;
@@ -691,7 +558,7 @@ async function procesarCompra() {
   }
 
   if (isNaN(cantidad) || cantidad <= 0) {
-    alert("Ingrese una cantidad válida mayor a 0.");
+    alert("Ingrese una cantidad valida mayor a 0.");
     return;
   }
 
@@ -717,17 +584,12 @@ async function procesarCompra() {
     });
 
     const data = await res.json();
-
     if (!res.ok) {
       throw new Error(data.error || "No se pudo completar la compra.");
     }
 
-    // Éxito: abrir modal con las entradas generadas y códigos de 6 caracteres
     mostrarModalCompraExitosa(data);
-
-    // Refrescar eventos para actualizar cupos
-    await cargarEventos();
-    abrirDetalleEvento(state.eventoSeleccionado.id);
+    cargarDetalleDesdeUrl();
 
   } catch (err) {
     alert(`Error en la compra: ${err.message}`);
@@ -753,165 +615,51 @@ function mostrarModalCompraExitosa(compra) {
     container.appendChild(tag);
   });
 
-  document.getElementById("modalCompraExitosa").classList.add("active");
-  actualizarMisComprasRapidas();
-}
+  const modal = document.getElementById("modalCompraExitosa");
+  modal.classList.add("active");
 
-// =========================================================================
-// 5. Control de Acceso en Puerta (Exclusivo Organizadores / Administradores)
-// =========================================================================
-async function validarEntradaEnPuerta() {
-  if (state.usuarioActivo?.rol !== "Organizador") {
-    alert("Acceso denegado: El control de acceso en puerta es exclusivo para usuarios con rol Organizador / Administrador.");
-    window.location.hash = "#catalogo";
-    return;
-  }
+  const cerrarModal = () => modal.classList.remove("active");
+  document.getElementById("btnCerrarModalCompra").onclick = cerrarModal;
+  document.getElementById("btnCerrarModal").onclick = cerrarModal;
 
-  const input = document.getElementById("doorTicketInput");
-  const codigo = input.value.trim().toUpperCase();
-  const selectEvento = document.getElementById("puertaEventoSelect");
-  const idEvento = selectEvento.value || null;
-
-  if (!codigo) {
-    alert("Por favor ingrese el código de 6 caracteres de la entrada.");
-    input.focus();
-    return;
-  }
-
-  const btn = document.getElementById("btnValidarEntrada");
-  btn.disabled = true;
-  btn.textContent = "Validando código...";
-
-  try {
-    const payload = {
-      codigo: codigo,
-      idEvento: idEvento
+  const btnVerDetalle = document.getElementById("btnIrAConsultaCompra");
+  if (btnVerDetalle) {
+    btnVerDetalle.onclick = () => {
+      window.location.href = `consultar-compra.html?id=${compra.id}`;
     };
-
-    const res = await fetch(`${API_VALIDACION}/validaciones`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const resultado = await res.json();
-    mostrarResultadoValidacion(resultado);
-    registrarHistorialValidacion(resultado);
-
-    input.value = "";
-    input.focus();
-
-  } catch (err) {
-    mostrarResultadoValidacion({
-      exitoso: false,
-      mensaje: `Error al conectar con la API de Validación (puerto 5002): ${err.message}`
-    });
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Validar Ingreso";
   }
 }
 
-function mostrarResultadoValidacion(res) {
-  const card = document.getElementById("validationResultCard");
-  card.style.display = "block";
+// -------------------------------------------------------------
+// Consulta de Compras (consultar-compra.html)
+// -------------------------------------------------------------
+function inicializarConsultaCompra() {
+  actualizarMisComprasRapidas();
 
-  if (res.exitoso) {
-    card.className = "validation-result-card result-success";
-    card.innerHTML = `
-      <div class="result-badge-indicator">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 6 9 17l-5-5"/>
-        </svg>
-        Ingreso Autorizado
-      </div>
-      <div class="result-title">Entrada Válida</div>
-      <div class="result-details-grid">
-        <div class="result-detail-item">
-          <strong>Código</strong>
-          <span class="ticket-code-tag">${res.codigo}</span>
-        </div>
-        <div class="result-detail-item">
-          <strong>Evento</strong>
-          <span>${res.nombreEvento || "Evento"}</span>
-        </div>
-        <div class="result-detail-item">
-          <strong>Modalidad</strong>
-          <span>${res.nombreModalidad || "General"}</span>
-        </div>
-        <div class="result-detail-item">
-          <strong>Estado</strong>
-          <span>${res.mensaje}</span>
-        </div>
-      </div>
-    `;
-  } else {
-    card.className = "validation-result-card result-danger";
-    card.innerHTML = `
-      <div class="result-badge-indicator">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
-        Acceso Denegado
-      </div>
-      <div class="result-title">Entrada Rechazada</div>
-      <div class="result-details-grid">
-        <div class="result-detail-item">
-          <strong>Código presentado</strong>
-          <span class="ticket-code-tag">${res.codigo || "-"}</span>
-        </div>
-        <div class="result-detail-item" style="grid-column: 1 / -1;">
-          <strong>Motivo del rechazo</strong>
-          <span style="font-weight: 600;">${res.mensaje}</span>
-        </div>
-      </div>
-    `;
-  }
-}
-
-function registrarHistorialValidacion(res) {
-  const hora = new Date().toLocaleTimeString("es-AR");
-  state.historialValidaciones.unshift({
-    hora: hora,
-    codigo: res.codigo || "-",
-    evento: res.nombreEvento ? `${res.nombreEvento} (${res.nombreModalidad || ""})` : "-",
-    exitoso: res.exitoso,
-    mensaje: res.mensaje
+  document.getElementById("btnBuscarCompra")?.addEventListener("click", () => buscarCompra());
+  document.getElementById("inputBuscarCompraId")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      buscarCompra();
+    }
   });
 
-  if (state.historialValidaciones.length > 10) {
-    state.historialValidaciones.pop();
+  // Si vino con parametro id en la URL, consultar automaticamente
+  const params = new URLSearchParams(window.location.search);
+  const compraId = params.get("id");
+  if (compraId) {
+    document.getElementById("inputBuscarCompraId").value = compraId;
+    buscarCompra(compraId);
   }
-
-  const tbody = document.getElementById("historialValidacionesBody");
-  tbody.innerHTML = state.historialValidaciones.map(item => `
-    <tr>
-      <td>${item.hora}</td>
-      <td><span class="ticket-code-tag">${item.codigo}</span></td>
-      <td>${item.evento}</td>
-      <td>
-        <span class="badge ${item.exitoso ? 'badge-success' : 'badge-danger'}">
-          ${item.exitoso ? 'Autorizado' : 'Rechazado'}
-        </span>
-      </td>
-    </tr>
-  `).join('');
 }
 
-// =========================================================================
-// 6. Consulta de Compra y Aislamiento de Entradas por Usuario
-// =========================================================================
-async function buscarCompra(compraId, actualizarHash = true) {
-  const id = compraId || document.getElementById("inputBuscarCompraId").value.trim();
+async function buscarCompra(compraIdManual = null) {
+  const input = document.getElementById("inputBuscarCompraId");
+  const id = compraIdManual || input.value.trim();
+
   if (!id) {
     alert("Por favor ingrese o seleccione un identificador de compra.");
     return;
-  }
-
-  if (actualizarHash && window.location.hash !== `#consulta-compra?id=${id}`) {
-    window.location.hash = `#consulta-compra?id=${id}`;
   }
 
   try {
@@ -923,9 +671,9 @@ async function buscarCompra(compraId, actualizarHash = true) {
 
     const compra = await res.json();
 
-    // Aislamiento de datos: Si el usuario activo es Comprador, solo puede ver sus propias compras
+    // Si el usuario activo es Comprador, validar que sea su compra
     if (state.usuarioActivo?.rol === "Comprador" && compra.dniComprador.toString() !== state.usuarioActivo.dni.toString()) {
-      limpiarVistaDetalleCompra();
+      document.getElementById("detalleCompraResultado").style.display = "none";
       alert("Acceso denegado: Esta compra no pertenece al usuario activo.");
       return;
     }
@@ -964,7 +712,6 @@ function renderizarDetalleCompra(compra) {
     }
 
     let btnCancelarHtml = "-";
-    // Solo puede cancelar si es Comprador, la entrada no fue usada, no está cancelada y es el comprador de la entrada
     if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada) {
       btnCancelarHtml = `
         <button class="btn btn-danger btn-sm btn-cancelar-entrada" data-codigo="${entrada.codigo}">
@@ -990,9 +737,8 @@ function renderizarDetalleCompra(compra) {
   });
 }
 
-// Endpoint de Cancelación: DELETE /api/entradas/{codigo}
 async function cancelarEntradaComprada(codigo, compraId) {
-  if (!confirm(`¿Está seguro de cancelar la entrada con código ${codigo}?\nEl cupo se restablecerá y la entrada ya no podrá ser utilizada.`)) {
+  if (!confirm(`Desea cancelar la entrada con codigo ${codigo}?\nEl cupo se restablecera y la entrada ya no podra ser utilizada.`)) {
     return;
   }
 
@@ -1009,28 +755,21 @@ async function cancelarEntradaComprada(codigo, compraId) {
       throw new Error(data.error || "No se pudo cancelar la entrada.");
     }
 
-    alert(data.mensaje || "Entrada cancelada con éxito.");
-    await buscarCompra(compraId);
-    await cargarEventos();
+    alert(data.mensaje || "Entrada cancelada con exito.");
+    buscarCompra(compraId);
 
   } catch (err) {
     alert(`Error al cancelar entrada: ${err.message}`);
   }
 }
 
-// Carga las compras reales y exclusivas del usuario activo consultando a ApiGestion
 async function actualizarMisComprasRapidas() {
   const cont = document.getElementById("misComprasBotones");
   if (!cont) return;
 
   cont.innerHTML = "";
 
-  if (!state.usuarioActivo) {
-    cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>Seleccione un usuario activo.</span>";
-    return;
-  }
-
-  if (state.usuarioActivo.rol !== "Comprador") {
+  if (!state.usuarioActivo || state.usuarioActivo.rol !== "Comprador") {
     cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>El historial de compras es exclusivo para cuentas con rol Comprador.</span>";
     return;
   }
@@ -1045,7 +784,7 @@ async function actualizarMisComprasRapidas() {
     cont.innerHTML = "";
 
     if (!comprasUsuario || comprasUsuario.length === 0) {
-      cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>No tienes compras registradas con este usuario todavía.</span>";
+      cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>No tienes compras registradas con este usuario todavia.</span>";
       return;
     }
 
@@ -1053,9 +792,9 @@ async function actualizarMisComprasRapidas() {
       const btn = document.createElement("button");
       btn.className = "btn btn-outline btn-sm font-mono";
       btn.textContent = `${compra.id.substring(0, 8)}... (${compra.nombreEvento})`;
-      btn.title = `ID: ${compra.id} — ${compra.nombreEvento} (${compra.cantidad} entradas)`;
+      btn.title = `ID: ${compra.id} - ${compra.nombreEvento} (${compra.cantidad} entradas)`;
       btn.addEventListener("click", () => {
-        window.location.hash = `#consulta-compra?id=${compra.id}`;
+        buscarCompra(compra.id);
       });
       cont.appendChild(btn);
     });
@@ -1066,14 +805,231 @@ async function actualizarMisComprasRapidas() {
   }
 }
 
-// =========================================================================
-// 7. Panel Organizador (Crear Eventos, Agregar Modalidades, Cancelar)
-// =========================================================================
+// -------------------------------------------------------------
+// Control de Acceso en Puerta (control-acceso.html)
+// -------------------------------------------------------------
+async function inicializarPuerta() {
+  try {
+    const res = await fetch(`${API_GESTION}/eventos`);
+    if (res.ok) {
+      state.eventos = await res.json();
+      const sel = document.getElementById("puertaEventoSelect");
+      if (sel) {
+        sel.innerHTML = `<option value="">Cualquier evento (autodetectar)</option>`;
+        state.eventos.forEach(ev => {
+          const opt = document.createElement("option");
+          opt.value = ev.id;
+          opt.textContent = `${ev.nombre} (${ev.cancelado ? 'Cancelado' : 'Disponible'})`;
+          sel.appendChild(opt);
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error al cargar eventos para puerta:", err);
+  }
+
+  document.getElementById("btnValidarEntrada")?.addEventListener("click", validarEntradaEnPuerta);
+  document.getElementById("doorTicketInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      validarEntradaEnPuerta();
+    }
+  });
+}
+
+async function validarEntradaEnPuerta() {
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Acceso denegado: El control de acceso en puerta es exclusivo para usuarios con rol Organizador.");
+    window.location.href = "index.html";
+    return;
+  }
+
+  const input = document.getElementById("doorTicketInput");
+  const codigo = input.value.trim().toUpperCase();
+  const selectEvento = document.getElementById("puertaEventoSelect");
+  const idEvento = selectEvento.value || null;
+
+  if (!codigo) {
+    alert("Por favor ingrese el codigo de 6 caracteres de la entrada.");
+    input.focus();
+    return;
+  }
+
+  const btn = document.getElementById("btnValidarEntrada");
+  btn.disabled = true;
+  btn.textContent = "Validando codigo...";
+
+  try {
+    const payload = {
+      codigo: codigo,
+      idEvento: idEvento
+    };
+
+    const res = await fetch(`${API_VALIDACION}/validaciones`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const resultado = await res.json();
+    mostrarResultadoValidacion(resultado);
+    registrarHistorialValidacion(resultado);
+
+    input.value = "";
+    input.focus();
+
+  } catch (err) {
+    mostrarResultadoValidacion({
+      exitoso: false,
+      mensaje: `Error al conectar con la API de Validacion (:5002): ${err.message}`
+    });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Validar Ingreso";
+  }
+}
+
+function mostrarResultadoValidacion(res) {
+  const card = document.getElementById("validationResultCard");
+  card.style.display = "block";
+
+  if (res.exitoso) {
+    card.className = "validation-result-card success";
+    card.innerHTML = `
+      <div class="result-badge-indicator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Acceso Autorizado
+      </div>
+      <div class="result-title">Ingreso Permitido</div>
+      <div class="result-details-grid">
+        <div class="result-detail-item">
+          <strong>Codigo de Entrada</strong>
+          <span class="ticket-code-tag">${res.codigo || "-"}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Evento</strong>
+          <span>${res.nombreEvento || "-"}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Modalidad</strong>
+          <span>${res.nombreModalidad || "-"}</span>
+        </div>
+        <div class="result-detail-item">
+          <strong>Hora de Ingreso</strong>
+          <span>${new Date().toLocaleTimeString("es-AR")}</span>
+        </div>
+      </div>
+    `;
+  } else {
+    card.className = "validation-result-card error";
+    card.innerHTML = `
+      <div class="result-badge-indicator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        Acceso Denegado
+      </div>
+      <div class="result-title">Entrada Rechazada</div>
+      <div class="result-details-grid">
+        <div class="result-detail-item">
+          <strong>Codigo presentado</strong>
+          <span class="ticket-code-tag">${res.codigo || "-"}</span>
+        </div>
+        <div class="result-detail-item" style="grid-column: 1 / -1;">
+          <strong>Motivo del rechazo</strong>
+          <span style="font-weight: 600;">${res.mensaje}</span>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function registrarHistorialValidacion(res) {
+  const hora = new Date().toLocaleTimeString("es-AR");
+  state.historialValidaciones.unshift({
+    hora: hora,
+    codigo: res.codigo || "-",
+    evento: res.nombreEvento ? `${res.nombreEvento} (${res.nombreModalidad || ""})` : "-",
+    exitoso: res.exitoso,
+    mensaje: res.mensaje
+  });
+
+  if (state.historialValidaciones.length > 10) {
+    state.historialValidaciones.pop();
+  }
+
+  const tbody = document.getElementById("historialValidacionesBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = state.historialValidaciones.map(item => `
+    <tr>
+      <td>${item.hora}</td>
+      <td><span class="ticket-code-tag">${item.codigo}</span></td>
+      <td>${item.evento}</td>
+      <td>
+        <span class="badge ${item.exitoso ? 'badge-success' : 'badge-danger'}">
+          ${item.exitoso ? 'Autorizado' : 'Rechazado'}
+        </span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// -------------------------------------------------------------
+// Gestion de Eventos (gestion-eventos.html)
+// -------------------------------------------------------------
+async function inicializarGestionEventos() {
+  await cargarEventosGestion();
+  inicializarMapaCrearEvento();
+
+  document.getElementById("formCrearEvento")?.addEventListener("submit", crearNuevoEvento);
+  document.getElementById("formAgregarModalidad")?.addEventListener("submit", agregarModalidadAEvento);
+  document.getElementById("btnBuscarLugarMapa")?.addEventListener("click", buscarLugarEnMapa);
+
+  document.getElementById("cancelarEventoSelect")?.addEventListener("change", renderizarModalidadesParaCancelar);
+  document.getElementById("btnCancelarEventoSeleccionado")?.addEventListener("click", () => {
+    const sel = document.getElementById("cancelarEventoSelect");
+    const ev = state.eventos.find(e => e.id === sel?.value);
+    if (ev) {
+      cancelarEvento(ev.id, ev.nombre);
+    }
+  });
+}
+
+async function cargarEventosGestion() {
+  try {
+    const res = await fetch(`${API_GESTION}/eventos`);
+    if (!res.ok) throw new Error("Error al obtener eventos.");
+    state.eventos = await res.json();
+
+    const selects = ["modalidadEventoSelect", "cancelarEventoSelect"];
+    selects.forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = "";
+      state.eventos.forEach(ev => {
+        const opt = document.createElement("option");
+        opt.value = ev.id;
+        opt.textContent = `${ev.nombre} (${ev.cancelado ? 'Cancelado' : 'Disponible'})`;
+        sel.appendChild(opt);
+      });
+    });
+
+    renderizarModalidadesParaCancelar();
+  } catch (err) {
+    console.error("Error al cargar eventos para gestion:", err);
+  }
+}
+
 async function crearNuevoEvento(e) {
   e.preventDefault();
 
   if (state.usuarioActivo?.rol !== "Organizador") {
-    alert("Acción restringida: debe operar como Organizador.");
+    alert("Accion restringida: debe operar como Organizador.");
     return;
   }
 
@@ -1081,8 +1037,13 @@ async function crearNuevoEvento(e) {
   const descripcion = document.getElementById("nuevoEventoDescripcion").value.trim();
   const fecha = document.getElementById("nuevoEventoFecha").value;
   const lugar = document.getElementById("nuevoEventoLugar").value.trim();
-  const latitud = parseFloat(document.getElementById("nuevoEventoLatitud").value) || null;
-  const longitud = parseFloat(document.getElementById("nuevoEventoLongitud").value) || null;
+  const latitud = parseFloat(document.getElementById("nuevoEventoLatitud").value) || -34.6037;
+  const longitud = parseFloat(document.getElementById("nuevoEventoLongitud").value) || -58.3816;
+
+  if (!nombre || !fecha || !lugar) {
+    alert("Complete los campos obligatorios: Nombre, Fecha y Lugar.");
+    return;
+  }
 
   try {
     const payload = {
@@ -1106,20 +1067,15 @@ async function crearNuevoEvento(e) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "No se pudo crear el evento.");
 
-    alert(`Evento '${data.nombre}' creado exitosamente.`);
+    alert(`Evento "${data.nombre}" creado exitosamente.`);
     document.getElementById("formCrearEvento").reset();
 
-    // Resetear marcador y mapa
     const inputLat = document.getElementById("nuevoEventoLatitud");
     const inputLng = document.getElementById("nuevoEventoLongitud");
     if (inputLat) inputLat.value = "-34.6037";
     if (inputLng) inputLng.value = "-58.3816";
-    if (state.mapaCrearEvento && state.markerCrearEvento) {
-      state.markerCrearEvento.setLatLng([-34.6037, -58.3816]);
-      state.mapaCrearEvento.setView([-34.6037, -58.3816], 13);
-    }
 
-    await cargarEventos();
+    await cargarEventosGestion();
 
   } catch (err) {
     alert(`Error al crear evento: ${err.message}`);
@@ -1130,23 +1086,23 @@ async function agregarModalidadAEvento(e) {
   e.preventDefault();
 
   if (state.usuarioActivo?.rol !== "Organizador") {
-    alert("Acción restringida: debe operar como Organizador.");
+    alert("Accion restringida: debe operar como Organizador.");
     return;
   }
 
   const idEvento = document.getElementById("modalidadEventoSelect").value;
-  const nombre = document.getElementById("nuevaModalidadNombre").value.trim();
-  const precio = parseFloat(document.getElementById("nuevaModalidadPrecio").value);
-  const cupoMaximo = parseInt(document.getElementById("nuevaModalidadCupo").value, 10);
-  const beneficios = document.getElementById("nuevaModalidadBeneficios").value.trim();
+  const nombre = document.getElementById("modalidadNombre").value.trim();
+  const precio = parseFloat(document.getElementById("modalidadPrecio").value);
+  const cupoMaximo = parseInt(document.getElementById("modalidadCupo").value, 10);
+  const beneficios = document.getElementById("modalidadBeneficios").value.trim();
+
+  if (!idEvento || !nombre || isNaN(precio) || isNaN(cupoMaximo)) {
+    alert("Complete los campos obligatorios de la modalidad.");
+    return;
+  }
 
   try {
-    const payload = {
-      nombre,
-      precio,
-      beneficios,
-      cupoMaximo
-    };
+    const payload = { nombre, precio, beneficios, cupoMaximo };
 
     const res = await fetch(`${API_GESTION}/eventos/${idEvento}/modalidades`, {
       method: "POST",
@@ -1160,9 +1116,9 @@ async function agregarModalidadAEvento(e) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "No se pudo agregar la modalidad.");
 
-    alert(`Modalidad '${data.nombre}' agregada con éxito.`);
+    alert(`Modalidad "${data.nombre}" agregada exitosamente.`);
     document.getElementById("formAgregarModalidad").reset();
-    await cargarEventos();
+    await cargarEventosGestion();
 
   } catch (err) {
     alert(`Error al agregar modalidad: ${err.message}`);
@@ -1171,11 +1127,11 @@ async function agregarModalidadAEvento(e) {
 
 async function cancelarEvento(idEvento, nombreEvento) {
   if (state.usuarioActivo?.rol !== "Organizador") {
-    alert("Acción restringida: debe operar como Organizador.");
+    alert("Accion restringida: debe operar como Organizador.");
     return;
   }
 
-  if (!confirm(`¿Está seguro de cancelar el evento '${nombreEvento}'?\nYa no se podrán vender más entradas.`)) {
+  if (!confirm(`Esta seguro de cancelar el evento "${nombreEvento}"?\nYa no se podran vender mas entradas.`)) {
     return;
   }
 
@@ -1191,15 +1147,18 @@ async function cancelarEvento(idEvento, nombreEvento) {
     if (!res.ok) throw new Error(data.error || "No se pudo cancelar el evento.");
 
     alert(data.mensaje || "Evento cancelado exitosamente.");
-    await cargarEventos();
-    renderizarModalidadesParaCancelar();
 
-    if (state.eventoSeleccionado?.id === idEvento) {
-      abrirDetalleEvento(idEvento);
+    if (document.getElementById("eventsGrid")) {
+      cargarEventos();
     }
-
-    if (document.getElementById("reporteView").classList.contains("active")) {
-      await cargarReporteRecaudacion();
+    if (document.getElementById("cancelarEventoSelect")) {
+      cargarEventosGestion();
+    }
+    if (document.getElementById("reporteTableBody")) {
+      cargarReporteRecaudacion();
+    }
+    if (document.getElementById("panelCompraComprador")) {
+      cargarDetalleDesdeUrl();
     }
 
   } catch (err) {
@@ -1207,254 +1166,13 @@ async function cancelarEvento(idEvento, nombreEvento) {
   }
 }
 
-// =========================================================================
-// 8. Reporte de Recaudación (Organizador)
-// =========================================================================
-async function cargarReporteRecaudacion() {
-  if (state.usuarioActivo?.rol !== "Organizador") {
-    alert("El reporte de recaudación es exclusivo para usuarios con rol Organizador.");
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_GESTION}/reportes/recaudacion`, {
-      headers: {
-        "X-Dni": state.usuarioActivo.dni.toString()
-      }
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || "Error al obtener reporte.");
-    }
-
-    const reporte = await res.json();
-
-    document.getElementById("kpiRecaudacionTotal").textContent = `$${reporte.totalGeneralRecaudado.toLocaleString('es-AR')}`;
-    document.getElementById("kpiEntradasVendidas").textContent = reporte.totalGeneralEntradasVendidas.toLocaleString('es-AR');
-
-    const tbody = document.getElementById("reporteTbody");
-    tbody.innerHTML = "";
-
-    if (reporte.eventos.length === 0) {
-      tbody.innerHTML = "<tr><td colspan='8' style='text-align: center;'>No hay eventos registrados.</td></tr>";
-      return;
-    }
-
-    reporte.eventos.forEach(ev => {
-      const tr = document.createElement("tr");
-
-      const esPasado = new Date(ev.fecha) < new Date();
-      let estadoHtml = `<span class="badge badge-success">Activo</span>`;
-      if (ev.cancelado) {
-        estadoHtml = `<span class="badge badge-danger">Cancelado</span>`;
-      } else if (esPasado) {
-        estadoHtml = `<span class="badge badge-secondary">Finalizado</span>`;
-      }
-
-      let modHtml = ev.modalidades.map(m => `
-        <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
-          <strong>${m.nombreModalidad}:</strong> ${m.entradasVendidas}/${m.cupoMaximo} — $${m.recaudacion.toLocaleString('es-AR')}
-        </div>
-      `).join('');
-
-      let compradoresHtml = "-";
-      if (ev.compradores && ev.compradores.length > 0) {
-        compradoresHtml = ev.compradores.map(c => `
-          <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
-            <strong>${c.nombre}</strong> <small style="color: var(--slate-500);">(${c.cantidadEntradas} ent. — $${c.total.toLocaleString('es-AR')})</small>
-          </div>
-        `).join('');
-      } else {
-        compradoresHtml = `<span style="color: var(--slate-400); font-size: 0.8rem; font-style: italic;">Sin compradores</span>`;
-      }
-
-      let btnCancelarHtml = !ev.cancelado 
-        ? `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`
-        : `<span style="color: var(--slate-400); font-size: 0.8rem;">Cancelado</span>`;
-
-      tr.innerHTML = `
-        <td><strong>${ev.nombreEvento}</strong><br><small style="color:var(--slate-500);">${ev.lugar}</small></td>
-        <td>${new Date(ev.fecha).toLocaleDateString("es-AR")}</td>
-        <td>${estadoHtml}</td>
-        <td><strong>${ev.entradasVendidas}</strong></td>
-        <td><strong style="color: var(--primary);">$${ev.recaudacionTotal.toLocaleString('es-AR')}</strong></td>
-        <td>${modHtml || "-"}</td>
-        <td>${compradoresHtml}</td>
-        <td>${btnCancelarHtml}</td>
-      `;
-
-      const btnCanc = tr.querySelector(".btn-cancelar-ev");
-      if (btnCanc) {
-        btnCanc.addEventListener("click", () => cancelarEvento(ev.idEvento, ev.nombreEvento));
-      }
-
-      tbody.appendChild(tr);
-    });
-
-  } catch (err) {
-    console.error("Error al cargar reporte:", err);
-  }
-}
-
-function actualizarSelectsEventos() {
-  const selectPuerta = document.getElementById("puertaEventoSelect");
-  const selectModalidadEv = document.getElementById("modalidadEventoSelect");
-  const selectCancelar = document.getElementById("cancelarEventoSelect");
-
-  if (selectPuerta) {
-    selectPuerta.innerHTML = `<option value="">-- Todos los eventos / Sin filtro estricto --</option>`;
-    state.eventos.forEach(e => {
-      const opt = document.createElement("option");
-      opt.value = e.id;
-      opt.textContent = `${e.nombre} (${new Date(e.fecha).toLocaleDateString('es-AR')})`;
-      selectPuerta.appendChild(opt);
-    });
-  }
-
-  if (selectModalidadEv) {
-    selectModalidadEv.innerHTML = "";
-    state.eventos.filter(e => !e.cancelado).forEach(e => {
-      const opt = document.createElement("option");
-      opt.value = e.id;
-      opt.textContent = e.nombre;
-      selectModalidadEv.appendChild(opt);
-    });
-  }
-
-  if (selectCancelar) {
-    const valorPrevio = selectCancelar.value;
-    selectCancelar.innerHTML = "";
-    state.eventos.forEach(e => {
-      const opt = document.createElement("option");
-      opt.value = e.id;
-      opt.textContent = `${e.nombre}${e.cancelado ? ' [CANCELADO]' : ''}`;
-      selectCancelar.appendChild(opt);
-    });
-
-    if (valorPrevio && state.eventos.some(e => e.id === valorPrevio)) {
-      selectCancelar.value = valorPrevio;
-    }
-    renderizarModalidadesParaCancelar();
-  }
-}
-
-// =========================================================================
-// 8.1 Mapa Picker Interactivo y Búsqueda de Ubicación para Crear Evento
-// =========================================================================
-function inicializarMapaCrearEvento() {
-  setTimeout(() => {
-    const mapDiv = document.getElementById("mapaCrearEvento");
-    if (!mapDiv) return;
-
-    let defaultLat = parseFloat(document.getElementById("nuevoEventoLatitud")?.value) || -34.6037;
-    let defaultLng = parseFloat(document.getElementById("nuevoEventoLongitud")?.value) || -58.3816;
-
-    if (!state.mapaCrearEvento) {
-      state.mapaCrearEvento = L.map('mapaCrearEvento', { attributionControl: false }).setView([defaultLat, defaultLng], 13);
-
-      const baseLayers = obtenerCapasBaseMapa();
-      baseLayers.predeterminada.addTo(state.mapaCrearEvento);
-      L.control.layers(baseLayers.capas, null, { position: 'topright' }).addTo(state.mapaCrearEvento);
-
-      state.markerCrearEvento = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(state.mapaCrearEvento);
-      state.markerCrearEvento.bindPopup("Arrastra este pin o haz clic en el mapa").openPopup();
-
-      state.markerCrearEvento.on('dragend', function (e) {
-        const pos = e.target.getLatLng();
-        actualizarUbicacionSeleccionada(pos.lat, pos.lng, true);
-      });
-
-      state.mapaCrearEvento.on('click', function (e) {
-        state.markerCrearEvento.setLatLng(e.latlng);
-        state.markerCrearEvento.bindPopup("Ubicación fijada").openPopup();
-        actualizarUbicacionSeleccionada(e.latlng.lat, e.latlng.lng, true);
-      });
-    } else {
-      state.mapaCrearEvento.invalidateSize();
-    }
-  }, 150);
-}
-
-function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
-  const inputLat = document.getElementById("nuevoEventoLatitud");
-  const inputLng = document.getElementById("nuevoEventoLongitud");
-
-  if (inputLat) inputLat.value = lat.toFixed(6);
-  if (inputLng) inputLng.value = lng.toFixed(6);
-
-  if (buscarNombre) {
-    const inputLugar = document.getElementById("nuevoEventoLugar");
-    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data && data.display_name && inputLugar) {
-          inputLugar.value = data.display_name;
-        }
-      })
-      .catch(err => {
-        console.warn("Reverse geocoding no disponible:", err);
-      });
-  }
-}
-
-async function buscarLugarEnMapa() {
-  const inputLugar = document.getElementById("nuevoEventoLugar");
-  const query = inputLugar ? inputLugar.value.trim() : "";
-  if (!query) {
-    alert("Por favor ingrese un nombre de lugar, dirección o ciudad para buscar.");
-    inputLugar?.focus();
-    return;
-  }
-
-  const btnBuscar = document.getElementById("btnBuscarLugarMapa");
-  const textoOriginal = btnBuscar ? btnBuscar.innerHTML : "";
-  if (btnBuscar) {
-    btnBuscar.disabled = true;
-    btnBuscar.innerHTML = "Buscando...";
-  }
-
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
-    const data = await res.json();
-
-    if (!data || data.length === 0) {
-      alert("No se encontró la dirección especificada en el mapa. Puedes hacer clic directamente sobre el mapa para ubicar el marcador.");
-      return;
-    }
-
-    const lat = parseFloat(data[0].lat);
-    const lon = parseFloat(data[0].lon);
-
-    if (state.mapaCrearEvento && state.markerCrearEvento) {
-      state.mapaCrearEvento.setView([lat, lon], 15);
-      state.markerCrearEvento.setLatLng([lat, lon]);
-      state.markerCrearEvento.bindPopup(`<strong>Ubicación seleccionada:</strong><br>${data[0].display_name}`).openPopup();
-    }
-
-    actualizarUbicacionSeleccionada(lat, lon, false);
-
-  } catch (err) {
-    console.error("Error al buscar en mapa:", err);
-    alert("No se pudo conectar con el servicio de mapas para la búsqueda. Puedes posicionar el marcador manualmente haciendo clic en el mapa.");
-  } finally {
-    if (btnBuscar) {
-      btnBuscar.disabled = false;
-      btnBuscar.innerHTML = textoOriginal;
-    }
-  }
-}
-
-// =========================================================================
-// 8.2 Cancelación de Modalidades individuales (Organizador)
-// =========================================================================
 async function cancelarModalidad(idEvento, idModalidad, nombreModalidad) {
   if (state.usuarioActivo?.rol !== "Organizador") {
-    alert("Acción restringida: debe operar como Organizador.");
+    alert("Accion restringida: debe operar como Organizador.");
     return;
   }
 
-  if (!confirm(`¿Está seguro de cancelar la modalidad '${nombreModalidad}'?\nLos compradores ya no podrán adquirir entradas de esta modalidad.`)) {
+  if (!confirm(`Desea cancelar la modalidad "${nombreModalidad}"?\nLos compradores ya no podran adquirir entradas de esta modalidad.`)) {
     return;
   }
 
@@ -1470,16 +1188,12 @@ async function cancelarModalidad(idEvento, idModalidad, nombreModalidad) {
     if (!res.ok) throw new Error(data.error || "No se pudo cancelar la modalidad.");
 
     alert(data.mensaje || "Modalidad cancelada exitosamente.");
-    await cargarEventos();
 
-    if (state.eventoSeleccionado?.id === idEvento) {
-      abrirDetalleEvento(idEvento);
+    if (document.getElementById("cancelarEventoSelect")) {
+      cargarEventosGestion();
     }
-
-    renderizarModalidadesParaCancelar();
-
-    if (document.getElementById("reporteView").classList.contains("active")) {
-      await cargarReporteRecaudacion();
+    if (document.getElementById("panelCompraComprador")) {
+      cargarDetalleDesdeUrl();
     }
 
   } catch (err) {
@@ -1503,7 +1217,7 @@ function renderizarModalidadesParaCancelar() {
   }
 
   if (!evento.modalidades || evento.modalidades.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Este evento no tiene modalidades registradas aún.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Este evento no tiene modalidades registradas aun.</td></tr>`;
     return;
   }
 
@@ -1513,7 +1227,7 @@ function renderizarModalidadesParaCancelar() {
     let estadoBadge = `<span class="badge badge-success">Activa</span>`;
     let btnAccionHtml = `
       <button class="btn btn-danger btn-sm btn-canc-mod" data-mod-id="${m.id}" data-mod-nombre="${m.nombre}">
-        🚫 Cancelar
+        Cancelar
       </button>
     `;
 
@@ -1541,68 +1255,200 @@ function renderizarModalidadesParaCancelar() {
   });
 }
 
-// =========================================================================
-// 9. Configuración de Listeners
-// =========================================================================
-function setupEventListeners() {
-  // Catálogo
-  document.getElementById("btnRefrescarEventos")?.addEventListener("click", cargarEventos);
-  document.getElementById("btnVolverCatalogo")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    window.location.hash = "#catalogo";
-  });
+function inicializarMapaCrearEvento() {
+  setTimeout(() => {
+    const mapDiv = document.getElementById("mapaCrearEvento");
+    if (!mapDiv) return;
 
-  // Compra
-  document.getElementById("selectModalidad")?.addEventListener("change", actualizarInfoModalidadSeleccionada);
-  document.getElementById("inputCantidad")?.addEventListener("input", calcularPrecioCompra);
-  document.getElementById("btnConfirmarCompra")?.addEventListener("click", procesarCompra);
+    let defaultLat = parseFloat(document.getElementById("nuevoEventoLatitud")?.value) || -34.6037;
+    let defaultLng = parseFloat(document.getElementById("nuevoEventoLongitud")?.value) || -58.3816;
 
-  // Puerta de Acceso
-  document.getElementById("btnValidarEntrada")?.addEventListener("click", validarEntradaEnPuerta);
-  document.getElementById("doorTicketInput")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      validarEntradaEnPuerta();
-    }
-  });
+    if (!state.mapaCrearEvento) {
+      state.mapaCrearEvento = L.map('mapaCrearEvento', { attributionControl: false }).setView([defaultLat, defaultLng], 13);
 
-  // Búsqueda de Compra
-  document.getElementById("btnBuscarCompra")?.addEventListener("click", () => buscarCompra());
+      const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+      googleCalles.addTo(state.mapaCrearEvento);
 
-  // Organizador - Eventos y Modalidades
-  document.getElementById("formCrearEvento")?.addEventListener("submit", crearNuevoEvento);
-  document.getElementById("formAgregarModalidad")?.addEventListener("submit", agregarModalidadAEvento);
-  document.getElementById("btnRefrescarReporte")?.addEventListener("click", cargarReporteRecaudacion);
+      state.markerCrearEvento = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(state.mapaCrearEvento);
 
-  // Mapa y Búsqueda para Crear Evento
-  document.getElementById("btnBuscarLugarMapa")?.addEventListener("click", buscarLugarEnMapa);
-  document.getElementById("nuevoEventoLugar")?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      buscarLugarEnMapa();
-    }
-  });
+      state.markerCrearEvento.on('dragend', function (event) {
+        const marker = event.target;
+        const position = marker.getLatLng();
+        actualizarUbicacionSeleccionada(position.lat, position.lng, true);
+      });
 
-  // Cancelar Evento Completo y cambio de selección de evento
-  document.getElementById("cancelarEventoSelect")?.addEventListener("change", renderizarModalidadesParaCancelar);
-  document.getElementById("btnCancelarEventoSeleccionado")?.addEventListener("click", () => {
-    const sel = document.getElementById("cancelarEventoSelect");
-    const ev = state.eventos.find(e => e.id === sel?.value);
-    if (ev) {
-      cancelarEvento(ev.id, ev.nombre);
-    }
-  });
-
-  // Modal Compra Exitosa
-  const cerrarModal = () => document.getElementById("modalCompraExitosa").classList.remove("active");
-  document.getElementById("btnCerrarModalCompra")?.addEventListener("click", cerrarModal);
-  document.getElementById("btnCerrarModal")?.addEventListener("click", cerrarModal);
-  document.getElementById("btnIrAConsultaCompra")?.addEventListener("click", () => {
-    cerrarModal();
-    if (state.compraActual) {
-      window.location.hash = `#consulta-compra?id=${state.compraActual.id}`;
+      state.mapaCrearEvento.on('click', function (e) {
+        state.markerCrearEvento.setLatLng(e.latlng);
+        actualizarUbicacionSeleccionada(e.latlng.lat, e.latlng.lng, true);
+      });
     } else {
-      window.location.hash = "#consulta-compra";
+      state.mapaCrearEvento.invalidateSize();
+      state.mapaCrearEvento.setView([defaultLat, defaultLng], 13);
+      if (state.markerCrearEvento) {
+        state.markerCrearEvento.setLatLng([defaultLat, defaultLng]);
+      }
     }
-  });
+  }, 150);
+}
+
+function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
+  const inputLat = document.getElementById("nuevoEventoLatitud");
+  const inputLng = document.getElementById("nuevoEventoLongitud");
+
+  if (inputLat) inputLat.value = lat.toFixed(6);
+  if (inputLng) inputLng.value = lng.toFixed(6);
+
+  if (buscarNombre) {
+    const inputLugar = document.getElementById("nuevoEventoLugar");
+    if (inputLugar && !inputLugar.value.trim()) {
+      inputLugar.value = `Ubicacion (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    }
+  }
+}
+
+async function buscarLugarEnMapa() {
+  const inputLugar = document.getElementById("nuevoEventoLugar");
+  const query = inputLugar ? inputLugar.value.trim() : "";
+
+  if (!query) {
+    alert("Ingrese una direccion o nombre de lugar para buscar en el mapa.");
+    inputLugar?.focus();
+    return;
+  }
+
+  const btnBuscar = document.getElementById("btnBuscarLugarMapa");
+  const textoOriginal = btnBuscar ? btnBuscar.innerHTML : "";
+  if (btnBuscar) {
+    btnBuscar.disabled = true;
+    btnBuscar.innerHTML = "Buscando...";
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      alert(`No se encontraron coordenadas para "${query}". Puede hacer clic en el mapa para marcar la ubicacion.`);
+      return;
+    }
+
+    const lat = parseFloat(data[0].lat);
+    const lon = parseFloat(data[0].lon);
+
+    if (state.mapaCrearEvento && state.markerCrearEvento) {
+      state.mapaCrearEvento.setView([lat, lon], 15);
+      state.markerCrearEvento.setLatLng([lat, lon]);
+      state.markerCrearEvento.bindPopup(`<strong>Ubicacion seleccionada:</strong><br>${data[0].display_name}`).openPopup();
+    }
+
+    actualizarUbicacionSeleccionada(lat, lon, false);
+
+  } catch (err) {
+    console.error("Error al buscar en mapa:", err);
+    alert("No se pudo conectar con el servicio de busqueda. Puede posicionar el marcador haciendo clic en el mapa.");
+  } finally {
+    if (btnBuscar) {
+      btnBuscar.disabled = false;
+      btnBuscar.innerHTML = textoOriginal;
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// Reporte de Recaudacion (reporte-recaudacion.html)
+// -------------------------------------------------------------
+async function cargarReporteRecaudacion() {
+  const tbody = document.getElementById("reporteTableBody");
+  if (!tbody) return;
+
+  if (state.usuarioActivo?.rol !== "Organizador") {
+    alert("Acceso denegado: El reporte de recaudacion es exclusivo para usuarios con rol Organizador.");
+    window.location.href = "index.html";
+    return;
+  }
+
+  tbody.innerHTML = "<tr><td colspan='8' style='text-align: center;'>Cargando reporte de recaudacion...</td></tr>";
+
+  try {
+    const res = await fetch(`${API_GESTION}/reportes/recaudacion`, {
+      headers: {
+        "X-Dni": state.usuarioActivo.dni.toString()
+      }
+    });
+
+    if (!res.ok) {
+      if (res.status === 403) throw new Error("Acceso denegado: No tiene permisos de Organizador.");
+      throw new Error("Error al obtener el reporte.");
+    }
+
+    const reporte = await res.json();
+
+    document.getElementById("totalGeneralRecaudado").textContent = `$${reporte.totalGeneralRecaudado.toLocaleString('es-AR')}`;
+    document.getElementById("totalGeneralEntradas").textContent = reporte.totalGeneralEntradasVendidas;
+
+    tbody.innerHTML = "";
+
+    if (reporte.eventos.length === 0) {
+      tbody.innerHTML = "<tr><td colspan='8' style='text-align: center;'>No hay eventos registrados.</td></tr>";
+      return;
+    }
+
+    reporte.eventos.forEach(ev => {
+      const tr = document.createElement("tr");
+
+      const esPasado = new Date(ev.fecha) < new Date();
+      let estadoHtml = `<span class="badge badge-success">Activo</span>`;
+      if (ev.cancelado) {
+        estadoHtml = `<span class="badge badge-danger">Cancelado</span>`;
+      } else if (esPasado) {
+        estadoHtml = `<span class="badge badge-secondary">Finalizado</span>`;
+      }
+
+      let modHtml = ev.modalidades.map(m => `
+        <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
+          <strong>${m.nombreModalidad}:</strong> ${m.entradasVendidas} vendidas ($${m.recaudado.toLocaleString('es-AR')})
+        </div>
+      `).join('');
+
+      let compradoresHtml = "-";
+      if (ev.compradores && ev.compradores.length > 0) {
+        compradoresHtml = ev.compradores.map(c => `
+          <div style="font-size: 0.825rem; margin-bottom: 0.25rem;">
+            <strong>${c.nombre}</strong> <small style="color: var(--slate-500);">(${c.cantidadEntradas} ent. - $${c.total.toLocaleString('es-AR')})</small>
+          </div>
+        `).join('');
+      } else {
+        compradoresHtml = `<span style="color: var(--slate-400); font-size: 0.8rem; font-style: italic;">Sin compradores</span>`;
+      }
+
+      let btnCancelarHtml = !ev.cancelado 
+        ? `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`
+        : `<span style="color: var(--slate-400); font-size: 0.8rem;">Cancelado</span>`;
+
+      tr.innerHTML = `
+        <td><strong>${ev.nombreEvento}</strong><br><small style="color: var(--slate-500);">${ev.lugar}</small></td>
+        <td>${new Date(ev.fecha).toLocaleDateString('es-AR')}</td>
+        <td>${estadoHtml}</td>
+        <td><strong>${ev.entradasVendidas}</strong></td>
+        <td><strong style="color: var(--primary);">$${ev.recaudacionTotal.toLocaleString('es-AR')}</strong></td>
+        <td>${modHtml || "-"}</td>
+        <td>${compradoresHtml}</td>
+        <td>${btnCancelarHtml}</td>
+      `;
+
+      const btnCanc = tr.querySelector(".btn-cancelar-ev");
+      if (btnCanc) {
+        btnCanc.addEventListener("click", () => cancelarEvento(ev.idEvento, ev.nombreEvento));
+      }
+
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
 }

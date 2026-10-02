@@ -61,9 +61,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* =========================================================================
-   Header & Navigation
-   ========================================================================= */
+/* Header & Navigation */
 header {
   background: var(--slate-900);
   border-bottom: 1px solid var(--slate-800);
@@ -218,9 +216,7 @@ nav.nav-tabs {
   display: none !important;
 }
 
-/* =========================================================================
-   Main Container & Layout
-   ========================================================================= */
+/* Main Container & Layout */
 main {
   max-width: 1240px;
   margin: 1.75rem auto 3.5rem;
@@ -228,16 +224,10 @@ main {
 }
 
 .section-view {
-  display: none;
-}
-
-.section-view.active {
   display: block;
 }
 
-/* =========================================================================
-   Cards & Content Containers
-   ========================================================================= */
+/* Cards & Content Containers */
 .card {
   background: #ffffff;
   border-radius: var(--radius-lg);
@@ -280,9 +270,7 @@ main {
   letter-spacing: 0.04em;
 }
 
-/* =========================================================================
-   Events Grid & Cards
-   ========================================================================= */
+/* Events Grid & Cards */
 .events-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -409,9 +397,7 @@ main {
   border-top: 1px solid var(--slate-200);
 }
 
-/* =========================================================================
-   Badges
-   ========================================================================= */
+/* Badges */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -442,9 +428,7 @@ main {
   border: 1px solid var(--slate-200);
 }
 
-/* =========================================================================
-   Buttons
-   ========================================================================= */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -520,9 +504,7 @@ main {
   font-size: 1rem;
 }
 
-/* =========================================================================
-   Forms & Controls
-   ========================================================================= */
+/* Forms & Controls */
 .form-group {
   margin-bottom: 1.15rem;
 }
@@ -559,9 +541,7 @@ main {
   gap: 1rem;
 }
 
-/* =========================================================================
-   Detail View & Map Section
-   ========================================================================= */
+/* Detail View & Map Section */
 .detail-layout {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
@@ -731,9 +711,7 @@ main {
   line-height: 1.5;
 }
 
-/* =========================================================================
-   Door Access Control (Puerta) — Clean Terminal Interface
-   ========================================================================= */
+/* Door Access Control (Puerta) — Clean Terminal Interface */
 .door-control-box {
   max-width: 680px;
   margin: 0 auto;
@@ -862,9 +840,7 @@ main {
   margin-top: 2.25rem;
 }
 
-/* =========================================================================
-   Consultar Compra
-   ========================================================================= */
+/* Consultar Compra */
 .search-purchase-box {
   max-width: 600px;
   margin-bottom: 1.5rem;
@@ -934,9 +910,7 @@ main {
   margin-bottom: 1rem;
 }
 
-/* =========================================================================
-   Tables
-   ========================================================================= */
+/* Tables */
 .table-responsive {
   overflow-x: auto;
   border: 1px solid var(--slate-200);
@@ -988,9 +962,7 @@ main {
   border: 1px solid var(--slate-300);
 }
 
-/* =========================================================================
-   Organizer Grid
-   ========================================================================= */
+/* Organizer Grid */
 .organizer-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1051,9 +1023,7 @@ main {
   letter-spacing: -0.02em;
 }
 
-/* =========================================================================
-   Modals
-   ========================================================================= */
+/* Modals */
 .modal-overlay {
   position: fixed;
   top: 0;

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TicketFlow - Detalle y Compra de Entrada</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="logo-area">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path>
+            <path d="M13 5v2"></path>
+            <path d="M13 17v2"></path>
+            <path d="M13 11v2"></path>
+          </svg>
+        </div>
+        <div class="logo-title">
+          <h1>TicketFlow</h1>
+          <span class="logo-subtitle">Plataforma de Entradas</span>
+        </div>
+      </div>
+
+      <div class="user-selector-box">
+        <span class="user-selector-label">Usuario activo:</span>
+        <select id="userSelect" aria-label="Seleccionar usuario activo">
+          <option value="">Cargando usuarios...</option>
+        </select>
+        <span id="userRoleBadge" class="role-badge role-comprador">Comprador</span>
+      </div>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Navegacion principal">
+      <a href="index.html" class="tab-btn active">Catalogo de Eventos</a>
+      <a href="consultar-compra.html" class="tab-btn">Consultar Compra</a>
+      <a href="control-acceso.html" class="tab-btn role-organizador-only" style="display: none;">Control de Acceso</a>
+      <a href="gestion-eventos.html" class="tab-btn role-organizador-only" style="display: none;">Gestion de Eventos</a>
+      <a href="reporte-recaudacion.html" class="tab-btn role-organizador-only" style="display: none;">Reporte de Recaudacion</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section-view">
+      <div class="card">
+        <div class="card-header">
+          <a href="index.html" id="btnVolverCatalogo" class="btn btn-outline btn-sm">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 18-6-6 6-6"/>
+            </svg>
+            Volver al Catalogo
+          </a>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="btnCancelarEventoDetalle" class="btn btn-danger btn-sm role-organizador-only" style="display: none;">
+              Cancelar Evento
+            </button>
+            <span id="detalleStatusBadge" class="badge badge-success">Disponible</span>
+          </div>
+        </div>
+
+        <div class="detail-layout">
+          <div class="detail-info-col">
+            <h2 id="detalleTitulo" class="detail-title">Titulo del Evento</h2>
+            <p id="detalleDescripcion" class="detail-description"></p>
+
+            <div class="info-chips">
+              <div class="info-chip">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span id="detalleFecha"></span>
+              </div>
+
+              <div class="info-chip">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span id="detalleLugar"></span>
+              </div>
+            </div>
+
+            <div class="map-section">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h4 class="section-subheading" style="margin: 0;">Ubicacion del evento</h4>
+                <a id="btnAbrirGoogleMapsExt" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="font-size: 0.775rem; padding: 0.25rem 0.65rem;">
+                  Ver en Google Maps
+                </a>
+              </div>
+              <div id="mapContainer"></div>
+            </div>
+          </div>
+
+          <div class="detail-purchase-col">
+            <div id="panelCompraComprador" class="purchase-box">
+              <h3 class="purchase-box-title">Adquisicion de Entradas</h3>
+
+              <div id="avisoEventoNoDisponible" style="display: none; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.875rem;"></div>
+              
+              <div class="form-group">
+                <label class="form-label" for="selectModalidad">Modalidad de Entrada</label>
+                <select id="selectModalidad" class="form-control"></select>
+              </div>
+
+              <div id="modalidadInfoBox" class="modalities-preview">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                  <div class="modalities-preview-title" id="modInfoNombre"></div>
+                  <span id="modInfoBadgeEstado" class="badge badge-success">Activa</span>
+                </div>
+                <div class="modalities-preview-perks" id="modInfoBeneficios"></div>
+                <div class="modalities-preview-meta">
+                  <span>Cupo disponible: <strong id="modInfoCupo"></strong></span>
+                  <span>Precio unitario: <strong id="modInfoPrecio"></strong></span>
+                </div>
+                <div id="boxCancelarModalidadDetalle" style="margin-top: 0.75rem; display: none;">
+                  <button id="btnCancelarModalidadDetalle" type="button" class="btn btn-danger btn-sm btn-block">
+                    Cancelar esta Modalidad
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="inputCantidad">Cantidad de Entradas</label>
+                <input type="number" id="inputCantidad" class="form-control" value="1" min="1" max="50">
+              </div>
+
+              <div id="discountBanner" class="discount-banner" style="display: none;">
+                <span class="discount-banner-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                </span>
+                <div>
+                  <strong>15% de Descuento aplicado</strong>
+                  <span class="discount-banner-desc">Beneficio por compra de 5 o mas entradas de la misma modalidad.</span>
+                </div>
+              </div>
+
+              <div class="price-summary">
+                <div class="price-summary-row">
+                  <span>Subtotal:</span>
+                  <span id="resumenSubtotal">$0</span>
+                </div>
+                <div id="filaDescuento" class="price-summary-row discount-row" style="display: none;">
+                  <span>Descuento (15%):</span>
+                  <span id="resumenDescuento">-$0</span>
+                </div>
+                <div class="price-summary-row total-row">
+                  <span>Total a pagar:</span>
+                  <span id="resumenTotal">$0</span>
+                </div>
+              </div>
+
+              <button id="btnConfirmarCompra" class="btn btn-primary btn-block">
+                Confirmar Compra
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modalCompraExitosa" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Compra Confirmada</h3>
+        <button id="btnCerrarModalCompra" class="modal-close-btn" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-lead">
+          La operacion se registro correctamente. Se generaron las <strong>entradas individuales con codigo unico de 6 caracteres</strong>:
+        </p>
+
+        <div class="modal-summary-box">
+          <div class="modal-summary-row">
+            <span>Identificador de Compra:</span>
+            <span id="modalCompraId" class="font-mono"></span>
+          </div>
+          <div class="modal-summary-row">
+            <span>Total Abonado:</span>
+            <span id="modalCompraTotal" class="modal-total-value"></span>
+          </div>
+        </div>
+
+        <h4 class="modal-tickets-heading">Codigos de acceso generados (presentar en puerta):</h4>
+        <div id="modalCodigosEntradas" class="modal-tickets-list"></div>
+
+        <div class="modal-actions">
+          <button id="btnIrAConsultaCompra" class="btn btn-primary btn-block">Ver Detalle de la Compra</button>
+          <button id="btnCerrarModal" class="btn btn-outline">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

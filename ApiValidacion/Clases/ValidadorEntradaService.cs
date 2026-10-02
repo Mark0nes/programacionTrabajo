@@ -11,8 +11,8 @@ public class ValidadorEntradaService
 
     public ValidadorEntradaService(string? rutaCompras = null, string? rutaEventos = null)
     {
-        _rutaCompras = rutaCompras ?? DataPathHelper.GetFilePath("compras.json");
-        _rutaEventos = rutaEventos ?? DataPathHelper.GetFilePath("eventos.json");
+        _rutaCompras = rutaCompras ?? (Directory.Exists("data") ? "data/compras.json" : "../../data/compras.json");
+        _rutaEventos = rutaEventos ?? (Directory.Exists("data") ? "data/eventos.json" : "../../data/eventos.json");
     }
 
     public ResultadoValidacion ValidarEntrada(string codigo, Guid? idEvento = null)

@@ -76,6 +76,32 @@ app.UseSwaggerUI(c =>
 
 app.UseCors();
 
+// Configurar archivos estaticos del frontend
+var frontendPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "..", "CarpetaFrontend"));
+if (!Directory.Exists(frontendPath))
+{
+    frontendPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "CarpetaFrontend"));
+}
+
+if (Directory.Exists(frontendPath))
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(frontendPath),
+        RequestPath = ""
+    });
+
+    // Rutas limpias para navegar las pantallas del frontend
+    app.MapGet("/", () => Results.File(Path.Combine(frontendPath, "index.html"), "text/html"));
+    app.MapGet("/eventos", () => Results.File(Path.Combine(frontendPath, "eventos.html"), "text/html"));
+    app.MapGet("/comprar-entrada", () => Results.File(Path.Combine(frontendPath, "comprar-entrada.html"), "text/html"));
+    app.MapGet("/consultar-compra", () => Results.File(Path.Combine(frontendPath, "consultar-compra.html"), "text/html"));
+    app.MapGet("/control-acceso", () => Results.File(Path.Combine(frontendPath, "control-acceso.html"), "text/html"));
+    app.MapGet("/gestion-eventos", () => Results.File(Path.Combine(frontendPath, "gestion-eventos.html"), "text/html"));
+    app.MapGet("/reporte-recaudacion", () => Results.File(Path.Combine(frontendPath, "reporte-recaudacion.html"), "text/html"));
+}
+
 // Helper para extraer DNI desde Header X-Dni o Query param 'dni'
 string? ObtenerDni(HttpContext context)
 {
@@ -90,9 +116,7 @@ string? ObtenerDni(HttpContext context)
     return null;
 }
 
-// -------------------------------------------------------------
 // 1. Usuarios
-// -------------------------------------------------------------
 app.MapGet("/api/usuarios", (UsuarioService usuarioService) =>
 {
     return Results.Ok(usuarioService.ObtenerTodos());
@@ -101,9 +125,7 @@ app.MapGet("/api/usuarios", (UsuarioService usuarioService) =>
 .WithTags("Usuarios")
 .WithSummary("Lista todos los usuarios precargados.");
 
-// -------------------------------------------------------------
 // 2. Eventos
-// -------------------------------------------------------------
 app.MapGet("/api/eventos", (EventoService eventoService) =>
 {
     return Results.Ok(eventoService.ObtenerTodos());
@@ -244,9 +266,7 @@ app.MapPut("/api/eventos/{idEvento:guid}/modalidades/{idModalidad:guid}/cancelar
 .WithTags("Eventos")
 .WithSummary("Cancela una modalidad de un evento (Requiere rol Organizador).");
 
-// -------------------------------------------------------------
 // 3. Compras
-// -------------------------------------------------------------
 app.MapPost("/api/compras", (HttpContext context, RealizarCompraDto dto, CompraService compraService, UsuarioService usuarioService) =>
 {
     try
@@ -296,9 +316,7 @@ app.MapGet("/api/compras", (HttpContext context, CompraService compraService) =>
 .WithTags("Compras")
 .WithSummary("Consulta compras (filtradas por DNI o todas).");
 
-// -------------------------------------------------------------
 // 4. Reportes
-// -------------------------------------------------------------
 app.MapGet("/api/reportes/recaudacion", (HttpContext context, EventoService eventoService, UsuarioService usuarioService) =>
 {
     try
@@ -318,9 +336,7 @@ app.MapGet("/api/reportes/recaudacion", (HttpContext context, EventoService even
 .WithTags("Reportes")
 .WithSummary("Recaudación y entradas vendidas por evento (Requiere rol Organizador).");
 
-// -------------------------------------------------------------
-// 5. Cancelación de Entrada (Promoción)
-// -------------------------------------------------------------
+// 5. Cancelacion de Entrada (Promocion)
 app.MapDelete("/api/entradas/{codigo}", (HttpContext context, string codigo, CompraService compraService, UsuarioService usuarioService) =>
 {
     try

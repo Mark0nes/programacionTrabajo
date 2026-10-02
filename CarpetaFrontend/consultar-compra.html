@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TicketFlow - Consultar Compra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="logo-area">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path>
+            <path d="M13 5v2"></path>
+            <path d="M13 17v2"></path>
+            <path d="M13 11v2"></path>
+          </svg>
+        </div>
+        <div class="logo-title">
+          <h1>TicketFlow</h1>
+          <span class="logo-subtitle">Plataforma de Entradas</span>
+        </div>
+      </div>
+
+      <div class="user-selector-box">
+        <span class="user-selector-label">Usuario activo:</span>
+        <select id="userSelect" aria-label="Seleccionar usuario activo">
+          <option value="">Cargando usuarios...</option>
+        </select>
+        <span id="userRoleBadge" class="role-badge role-comprador">Comprador</span>
+      </div>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Navegacion principal">
+      <a href="index.html" class="tab-btn">Catalogo de Eventos</a>
+      <a href="consultar-compra.html" class="tab-btn active">Consultar Compra</a>
+      <a href="control-acceso.html" class="tab-btn role-organizador-only" style="display: none;">Control de Acceso</a>
+      <a href="gestion-eventos.html" class="tab-btn role-organizador-only" style="display: none;">Gestion de Eventos</a>
+      <a href="reporte-recaudacion.html" class="tab-btn role-organizador-only" style="display: none;">Reporte de Recaudacion</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section-view">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Consultar Detalle de una Compra</h2>
+            <p class="card-subtitle">Ingresa el identificador de la compra para visualizar las entradas individuales y su estado de uso.</p>
+          </div>
+        </div>
+
+        <div class="search-box-container">
+          <div class="form-group" style="margin-bottom: 0.75rem;">
+            <label class="form-label" for="inputBuscarCompraId">Identificador de Compra (GUID):</label>
+            <div style="display: flex; gap: 0.5rem; max-width: 580px;">
+              <input type="text" id="inputBuscarCompraId" class="form-control font-mono" placeholder="Ej: 6087528b-f7af-4d13-9a95-5df2a3b7ef43">
+              <button id="btnBuscarCompra" class="btn btn-primary" style="white-space: nowrap;">
+                Buscar Compra
+              </button>
+            </div>
+          </div>
+
+          <div style="margin-top: 1rem;">
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--slate-600); display: block; margin-bottom: 0.4rem;">
+              Mis compras recientes:
+            </span>
+            <div id="misComprasBotones" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+          </div>
+        </div>
+
+        <div id="detalleCompraResultado" style="display: none; margin-top: 2rem;">
+          <div class="purchase-info-summary">
+            <div class="info-row">
+              <span class="info-label">ID de Operacion:</span>
+              <span id="compraInfoId" class="font-mono"></span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Evento:</span>
+              <strong id="compraInfoEvento"></strong>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Modalidad:</span>
+              <span id="compraInfoModalidad"></span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Total Abonado:</span>
+              <strong id="compraInfoTotal" style="color: var(--primary);"></strong>
+            </div>
+          </div>
+
+          <h4 class="section-subheading" style="margin-top: 1.5rem; margin-bottom: 0.75rem;">
+            Entradas Individuales (presentar cada codigo en puerta):
+          </h4>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Codigo</th>
+                  <th>Modalidad</th>
+                  <th>Precio Unitario</th>
+                  <th>Estado</th>
+                  <th>Accion</th>
+                </tr>
+              </thead>
+              <tbody id="entradasCompraTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

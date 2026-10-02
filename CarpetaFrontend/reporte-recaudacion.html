@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TicketFlow - Reporte de Recaudacion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="logo-area">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2 2Z"></path>
+            <path d="M13 5v2"></path>
+            <path d="M13 17v2"></path>
+            <path d="M13 11v2"></path>
+          </svg>
+        </div>
+        <div class="logo-title">
+          <h1>TicketFlow</h1>
+          <span class="logo-subtitle">Plataforma de Entradas</span>
+        </div>
+      </div>
+
+      <div class="user-selector-box">
+        <span class="user-selector-label">Usuario activo:</span>
+        <select id="userSelect" aria-label="Seleccionar usuario activo">
+          <option value="">Cargando usuarios...</option>
+        </select>
+        <span id="userRoleBadge" class="role-badge role-organizador">Organizador</span>
+      </div>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Navegacion principal">
+      <a href="index.html" class="tab-btn">Catalogo de Eventos</a>
+      <a href="consultar-compra.html" class="tab-btn">Consultar Compra</a>
+      <a href="control-acceso.html" class="tab-btn role-organizador-only" style="display: none;">Control de Acceso</a>
+      <a href="gestion-eventos.html" class="tab-btn role-organizador-only" style="display: none;">Gestion de Eventos</a>
+      <a href="reporte-recaudacion.html" class="tab-btn active role-organizador-only" style="display: none;">Reporte de Recaudacion</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="section-view">
+      <!-- Metricas globales -->
+      <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+        <div class="metric-card" style="background: white; border: 1px solid var(--slate-200); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow-sm);">
+          <div style="font-size: 0.85rem; color: var(--slate-500); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Recaudacion Total</div>
+          <div id="totalGeneralRecaudado" style="font-size: 1.75rem; font-weight: 700; color: var(--primary); margin-top: 0.35rem;">$0</div>
+          <small style="color: var(--slate-400);">Suma acumulada de todas las ventas</small>
+        </div>
+
+        <div class="metric-card" style="background: white; border: 1px solid var(--slate-200); border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow-sm);">
+          <div style="font-size: 0.85rem; color: var(--slate-500); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Entradas Vendidas</div>
+          <div id="totalGeneralEntradas" style="font-size: 1.75rem; font-weight: 700; color: var(--slate-800); margin-top: 0.35rem;">0</div>
+          <small style="color: var(--slate-400);">Total de tickets emitidos</small>
+        </div>
+      </div>
+
+      <!-- Tabla de recaudacion detallada -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Detalle de Recaudacion por Evento</h2>
+            <p class="card-subtitle">Balance financiero por evento, modalidades asociadas, compradores y recaudacion neta.</p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Evento</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+                <th>Vendidas</th>
+                <th>Recaudacion</th>
+                <th>Desglose por Modalidad</th>
+                <th>Compradores</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="reporteTableBody">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--slate-400);">Cargando reporte de recaudacion...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

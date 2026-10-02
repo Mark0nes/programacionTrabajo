@@ -38,7 +38,7 @@ public class GestionEventosTests
         _personaRepo.GuardarUsuarios(usuarios);
 
         _usuarioService = new UsuarioService(_personaRepo);
-        _eventoService = new EventoService(_eventoRepo, _compraRepo);
+        _eventoService = new EventoService(_eventoRepo, _compraRepo, _usuarioService);
         _compraService = new CompraService(_compraRepo, _eventoRepo, _usuarioService);
     }
 
