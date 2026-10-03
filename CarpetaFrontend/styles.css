@@ -399,6 +399,14 @@ main {
   border-top: 1px solid var(--slate-200);
 }
 
+.modal-card {
+  background: var(--slate-50);
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--slate-200);
+  border-radius: 0.75rem;
+}
+
 /* Badges */
 .badge {
   display: inline-flex;
