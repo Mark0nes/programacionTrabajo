@@ -89,7 +89,6 @@ public class ValidadorEntradaService
             bool usada = entradaEncontrada["Usada"]?.Value<bool>() ?? false;
             DateTime? fechaUso = entradaEncontrada["FechaUso"]?.Value<DateTime?>();
 
-            // 1. Si está cancelada por el comprador
             if (cancelada)
             {
                 return new ResultadoValidacion
@@ -103,7 +102,6 @@ public class ValidadorEntradaService
                 };
             }
 
-            // 2. Si se especificó el ID del evento de la puerta y no coincide
             if (idEvento.HasValue && idEvento.Value != Guid.Empty && idEvento.Value != eventoIdEntrada)
             {
                 return new ResultadoValidacion
@@ -117,7 +115,6 @@ public class ValidadorEntradaService
                 };
             }
 
-            // 3. Verificar si el evento fue cancelado
             if (File.Exists(_rutaEventos))
             {
                 try
@@ -142,11 +139,9 @@ public class ValidadorEntradaService
                 }
                 catch
                 {
-                    // No bloquear validación si el archivo de eventos no se puede parsear
                 }
             }
 
-            // 4. Si ya fue usada
             if (usada)
             {
                 return new ResultadoValidacion
@@ -161,7 +156,6 @@ public class ValidadorEntradaService
                 };
             }
 
-            // 5. Entrada válida -> Marcar como usada y persistir inmediatamente
             DateTime ahora = DateTime.Now;
             entradaEncontrada["Usada"] = true;
             entradaEncontrada["FechaUso"] = ahora;

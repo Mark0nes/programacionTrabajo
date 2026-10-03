@@ -1,8 +1,6 @@
-// Configuracion de endpoints de las dos APIs
 const API_GESTION = "http://localhost:5001/api";
 const API_VALIDACION = "http://localhost:5002/api";
 
-// Estado global de la aplicacion
 const state = {
   usuarios: [],
   usuarioActivo: null,
@@ -16,12 +14,10 @@ const state = {
   markerCrearEvento: null
 };
 
-// Inicializacion al cargar la pagina
 document.addEventListener("DOMContentLoaded", async () => {
   await cargarUsuarios();
   setupComun();
 
-  // Inicializar segun la pagina actual
   if (document.getElementById("eventsGrid")) {
     cargarEventos();
   }
@@ -42,7 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// Carga de usuarios y manejo del usuario activo
 async function cargarUsuarios() {
   try {
     const res = await fetch(`${API_GESTION}/usuarios`);
@@ -60,7 +55,6 @@ async function cargarUsuarios() {
       select.appendChild(opt);
     });
 
-    // Recuperar usuario guardado en localStorage o usar el primero
     const savedDni = localStorage.getItem("ticketflow_user_dni");
     const userToSelect = state.usuarios.find(u => u.dni.toString() === savedDni) || state.usuarios[0];
 
@@ -89,14 +83,12 @@ function seleccionarUsuario(usuario) {
   state.usuarioActivo = usuario;
   localStorage.setItem("ticketflow_user_dni", usuario.dni);
 
-  // Actualizar badge de rol en el encabezado
   const badge = document.getElementById("userRoleBadge");
   if (badge) {
     badge.textContent = usuario.rol;
     badge.className = `role-badge role-${usuario.rol.toLowerCase()}`;
   }
 
-  // Controlar visibilidad de enlaces segun el rol
   const organizadorElements = document.querySelectorAll(".role-organizador-only");
   const compradorElements = document.querySelectorAll(".role-comprador-only");
 
@@ -107,7 +99,6 @@ function seleccionarUsuario(usuario) {
     organizadorElements.forEach(el => el.style.display = "none");
     compradorElements.forEach(el => el.style.display = "");
 
-    // Si el usuario es Comprador y esta en una pagina exclusiva de Organizador, redirigir al catalogo
     const path = window.location.pathname.toLowerCase();
     if (path.includes("control-acceso") || path.includes("gestion-eventos") || path.includes("reporte-recaudacion")) {
       alert("Acceso denegado: Esta seccion es exclusiva para organizadores.");
@@ -116,7 +107,6 @@ function seleccionarUsuario(usuario) {
     }
   }
 
-  // Refrescar vistas segun la pagina actual
   if (document.getElementById("eventsGrid")) {
     renderizarCatalogo();
   }
@@ -132,9 +122,6 @@ function setupComun() {
   document.getElementById("btnRefrescarEventos")?.addEventListener("click", cargarEventos);
 }
 
-// -------------------------------------------------------------
-// Catalogo de Eventos (index.html / eventos.html)
-// -------------------------------------------------------------
 async function cargarEventos() {
   const container = document.getElementById("eventsGrid");
   if (!container) return;
@@ -259,9 +246,6 @@ function renderizarCatalogo() {
   });
 }
 
-// -------------------------------------------------------------
-// Detalle de Evento y Compra (comprar-entrada.html)
-// -------------------------------------------------------------
 async function cargarDetalleDesdeUrl() {
   const params = new URLSearchParams(window.location.search);
   const eventoId = params.get("id");
@@ -306,7 +290,6 @@ function renderDetalleEvento(evento) {
     badge.className = "badge badge-success";
   }
 
-  // Boton para cancelar evento completo (Organizador)
   const btnCancEv = document.getElementById("btnCancelarEventoDetalle");
   if (btnCancEv) {
     if (state.usuarioActivo?.rol === "Organizador" && !evento.cancelado) {
@@ -317,7 +300,6 @@ function renderDetalleEvento(evento) {
     }
   }
 
-  // Aviso visual si el evento no admite compras
   const aviso = document.getElementById("avisoEventoNoDisponible");
   if (aviso) {
     if (evento.cancelado) {
@@ -337,7 +319,6 @@ function renderDetalleEvento(evento) {
     }
   }
 
-  // Cargar selector de modalidades
   const selectMod = document.getElementById("selectModalidad");
   selectMod.innerHTML = "";
 
@@ -364,7 +345,6 @@ function renderDetalleEvento(evento) {
     inputCant.disabled = (evento.cancelado || esPasado) && state.usuarioActivo?.rol === "Comprador";
   }
 
-  // Enlace a Google Maps externo
   const btnGmaps = document.getElementById("btnAbrirGoogleMapsExt");
   if (btnGmaps) {
     const lat = evento.latitud || -34.6037;
@@ -372,10 +352,8 @@ function renderDetalleEvento(evento) {
     btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   }
 
-  // Renderizar mapa interactivo
   renderizarMapa(evento.latitud, evento.longitud, evento.nombre, evento.lugar);
 
-  // Listeners del panel de compra
   selectMod.onchange = actualizarInfoModalidadSeleccionada;
   if (inputCant) inputCant.oninput = calcularPrecioCompra;
 
@@ -513,7 +491,6 @@ function calcularPrecioCompra() {
   let tieneDescuento = false;
   let montoDescuento = 0;
 
-  // Descuento del 15% para 5 o mas entradas
   if (cantidad >= 5) {
     tieneDescuento = true;
     montoDescuento = Math.round(subtotal * 0.15);
@@ -630,9 +607,6 @@ function mostrarModalCompraExitosa(compra) {
   }
 }
 
-// -------------------------------------------------------------
-// Consulta de Compras (consultar-compra.html)
-// -------------------------------------------------------------
 function inicializarConsultaCompra() {
   actualizarMisComprasRapidas();
 
@@ -644,7 +618,6 @@ function inicializarConsultaCompra() {
     }
   });
 
-  // Si vino con parametro id en la URL, consultar automaticamente
   const params = new URLSearchParams(window.location.search);
   const compraId = params.get("id");
   if (compraId) {
@@ -671,7 +644,6 @@ async function buscarCompra(compraIdManual = null) {
 
     const compra = await res.json();
 
-    // Si el usuario activo es Comprador, validar que sea su compra
     if (state.usuarioActivo?.rol === "Comprador" && compra.dniComprador.toString() !== state.usuarioActivo.dni.toString()) {
       document.getElementById("detalleCompraResultado").style.display = "none";
       alert("Acceso denegado: Esta compra no pertenece al usuario activo.");
@@ -805,9 +777,6 @@ async function actualizarMisComprasRapidas() {
   }
 }
 
-// -------------------------------------------------------------
-// Control de Acceso en Puerta (control-acceso.html)
-// -------------------------------------------------------------
 async function inicializarPuerta() {
   try {
     const res = await fetch(`${API_GESTION}/eventos`);
@@ -979,9 +948,6 @@ function registrarHistorialValidacion(res) {
   `).join('');
 }
 
-// -------------------------------------------------------------
-// Gestion de Eventos (gestion-eventos.html)
-// -------------------------------------------------------------
 async function inicializarGestionEventos() {
   await cargarEventosGestion();
   inicializarMapaCrearEvento();
@@ -1358,9 +1324,6 @@ async function buscarLugarEnMapa() {
   }
 }
 
-// -------------------------------------------------------------
-// Reporte de Recaudacion (reporte-recaudacion.html)
-// -------------------------------------------------------------
 async function cargarReporteRecaudacion() {
   const tbody = document.getElementById("reporteTableBody");
   if (!tbody) return;

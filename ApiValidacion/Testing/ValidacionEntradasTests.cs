@@ -31,7 +31,6 @@ public class ValidacionEntradasTests
         _evento1Id = Guid.NewGuid();
         _evento2Id = Guid.NewGuid();
 
-        // Crear eventos de prueba
         var eventos = new JArray
         {
             new JObject
@@ -51,7 +50,6 @@ public class ValidacionEntradasTests
         };
         File.WriteAllText(_eventosFile, eventos.ToString(Formatting.Indented));
 
-        // Crear compras con entradas de prueba
         var compras = new JArray
         {
             new JObject
@@ -136,7 +134,6 @@ public class ValidacionEntradasTests
     [Test]
     public void ValidarEntrada_EntradaValida_AutorizaIngresoYMarcaComoUsada()
     {
-        // 1. Validar por primera vez
         var resultado = _validador.ValidarEntrada(CodigoValido, _evento1Id);
 
         Assert.That(resultado.Exitoso, Is.True);
@@ -144,7 +141,6 @@ public class ValidacionEntradasTests
         Assert.That(resultado.Mensaje, Does.Contain("Ingreso autorizado"));
         Assert.That(resultado.FechaUso, Is.Not.Null);
 
-        // 2. Verificar que se persistió en disco
         string json = File.ReadAllText(_comprasFile);
         var compras = JArray.Parse(json);
         var entrada = compras[0]["Entradas"]!.First(e => e["Codigo"]!.ToString() == CodigoValido);
@@ -174,7 +170,6 @@ public class ValidacionEntradasTests
     [Test]
     public void ValidarEntrada_EntradaDeOtroEvento_RechazaConEstadoEventoIncorrecto()
     {
-        // La entrada EVT789 es para Quilmes Rock (_evento2Id), se intenta validar en puerta de Lollapalooza (_evento1Id)
         var resultado = _validador.ValidarEntrada(CodigoEvento2, _evento1Id);
 
         Assert.That(resultado.Exitoso, Is.False);
@@ -194,7 +189,6 @@ public class ValidacionEntradasTests
     [Test]
     public void ValidarEntrada_EventoCancelado_RechazaIngreso()
     {
-        // Marcar evento 1 como cancelado
         string json = File.ReadAllText(_eventosFile);
         var eventos = JArray.Parse(json);
         eventos[0]["Cancelado"] = true;
@@ -210,11 +204,9 @@ public class ValidacionEntradasTests
     [Test]
     public void ValidarEntrada_DobleValidacionConsecutiva_SegundaFallaPorYaUsada()
     {
-        // Primera validación -> exitosa
         var res1 = _validador.ValidarEntrada(CodigoValido, _evento1Id);
         Assert.That(res1.Exitoso, Is.True);
 
-        // Segunda validación inmediata de la misma entrada -> debe ser rechazada
         var res2 = _validador.ValidarEntrada(CodigoValido, _evento1Id);
         Assert.That(res2.Exitoso, Is.False);
         Assert.That(res2.Estado, Is.EqualTo(EstadoValidacion.YaFueUsada));

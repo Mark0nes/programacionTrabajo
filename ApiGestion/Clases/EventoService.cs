@@ -88,7 +88,7 @@ public class EventoService
 
         if (evento.Cancelado)
         {
-            return evento; // Ya estaba cancelado
+            return evento;
         }
 
         evento.Cancelar();
@@ -162,7 +162,6 @@ public class EventoService
                 RecaudacionTotal = comprasEvento.Sum(c => c.Total)
             };
 
-            // Agrupar compradores que adquirieron entradas para este evento
             foreach (var compra in comprasEvento)
             {
                 int cantActivas = compra.Entradas.Count(e => !e.Cancelada);

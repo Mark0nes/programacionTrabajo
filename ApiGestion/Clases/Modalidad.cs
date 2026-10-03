@@ -87,8 +87,6 @@ public class Modalidad
             throw new ArgumentException("La cantidad de entradas debe ser mayor que cero.");
         }
 
-        // Si alguien compra 5 entradas o más de la misma modalidad en una sola compra,
-        // el precio total tiene un descuento del 15%
         if (cantidad >= 5)
         {
             return Math.Round(Precio * cantidad * 0.85m, 2);

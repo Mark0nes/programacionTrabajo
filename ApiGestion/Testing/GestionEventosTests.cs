@@ -28,7 +28,6 @@ public class GestionEventosTests
         _eventoRepo = new EventoRepository(eventosFile);
         _compraRepo = new CompraRepository(comprasFile);
 
-        // Preload sample users
         var usuarios = new List<Usuario>
         {
             new("30111222", "Lucía Fernández", "lfernandez", RolUsuario.Organizador),
@@ -53,7 +52,6 @@ public class GestionEventosTests
             }
             catch
             {
-                // Ignorar error al limpiar directorio temporal
             }
         }
     }
@@ -63,15 +61,15 @@ public class GestionEventosTests
     {
         var modalidad = new Modalidad("General", 1000m, "Acceso general", 50);
 
-        // 4 entradas -> precio normal 4000
+        // 4 entradas 4000
         decimal precioCuatro = modalidad.CalcularPrecio(4);
         Assert.That(precioCuatro, Is.EqualTo(4000m));
 
-        // 5 entradas -> 5000 * 0.85 = 4250
+        // 5 entradas 5000 * 0.85 = 4250
         decimal precioCinco = modalidad.CalcularPrecio(5);
         Assert.That(precioCinco, Is.EqualTo(4250m));
 
-        // 10 entradas -> 10000 * 0.85 = 8500
+        // 10 entradas 10000 * 0.85 = 8500
         decimal precioDiez = modalidad.CalcularPrecio(10);
         Assert.That(precioDiez, Is.EqualTo(8500m));
     }
@@ -82,7 +80,6 @@ public class GestionEventosTests
         var evento = _eventoService.Crear("Festival", "Desc", DateTime.Now.AddDays(10), "Estadio");
         var mod = _eventoService.AgregarModalidad(evento.Id, "VIP", 5000m, "Bar", 2);
 
-        // Intentar comprar 3 entradas cuando solo hay 2
         var ex = Assert.Throws<InvalidOperationException>(() =>
         {
             _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 3);
@@ -109,7 +106,6 @@ public class GestionEventosTests
     [Test]
     public void RealizarCompra_EventoConFechaPasada_LanzaExcepcion()
     {
-        // Evento con fecha pasada
         var eventos = _eventoRepo.ObtenerEventos();
         var eventoPasado = new Evento("Evento Ayer", "Desc", DateTime.Now.AddDays(-1), "Teatro");
         var mod = new Modalidad("General", 1000m, "General", 50);
@@ -148,15 +144,12 @@ public class GestionEventosTests
     [Test]
     public void ValidacionRoles_OrganizadorYComprador_AplicaRestriccionesCorrectas()
     {
-        // Lucía es Organizador
         Assert.DoesNotThrow(() => _usuarioService.ValidarRol("30111222", RolUsuario.Organizador));
         Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("30111222", RolUsuario.Comprador));
 
-        // Sofía es Comprador
         Assert.DoesNotThrow(() => _usuarioService.ValidarRol("40123456", RolUsuario.Comprador));
         Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("40123456", RolUsuario.Organizador));
 
-        // DNI inexistente o nulo
         Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("99999999", RolUsuario.Organizador));
         Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol(null, RolUsuario.Comprador));
     }
@@ -170,15 +163,12 @@ public class GestionEventosTests
         var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 2);
         var entradaACancelar = compra.Entradas[0];
 
-        // Verificar cupo restante antes de cancelar: 10 - 2 = 8
         var eventoAntes = _eventoService.ObtenerPorId(evento.Id)!;
         Assert.That(eventoAntes.ObtenerModalidadPorId(mod.Id)!.CupoDisponible, Is.EqualTo(8));
 
-        // Cancelar una entrada
         var entradaCancelada = _compraService.CancelarEntrada(entradaACancelar.Codigo, "40123456");
         Assert.That(entradaCancelada.Cancelada, Is.True);
 
-        // Verificar que el cupo volvió a 9
         var eventoDespues = _eventoService.ObtenerPorId(evento.Id)!;
         Assert.That(eventoDespues.ObtenerModalidadPorId(mod.Id)!.CupoDisponible, Is.EqualTo(9));
     }
@@ -192,7 +182,6 @@ public class GestionEventosTests
         var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 1);
         var entrada = compra.Entradas[0];
 
-        // Marcar entrada como usada en puerta
         entrada.MarcarComoUsada();
         _compraRepo.GuardarCompras(new List<Compra> { compra });
 
@@ -237,7 +226,6 @@ public class GestionEventosTests
         Assert.That(modCancelada.Cancelada, Is.True);
         Assert.That(modCancelada.HayCupoDisponible(1), Is.False);
 
-        // Verificar que persiste en el repositorio
         var eventoRecuperado = _eventoService.ObtenerPorId(evento.Id)!;
         var modRecuperada = eventoRecuperado.ObtenerModalidadPorId(mod.Id)!;
         Assert.That(modRecuperada.Cancelada, Is.True);

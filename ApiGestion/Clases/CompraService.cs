@@ -41,10 +41,8 @@ public class CompraService
             throw new ArgumentException("La cantidad de entradas debe ser mayor a cero.");
         }
 
-        // 1. Validar que el usuario exista y sea Comprador
         var comprador = _usuarioService.ValidarRol(dniComprador, RolUsuario.Comprador);
 
-        // 2. Buscar y validar evento
         var eventos = _eventoRepository.ObtenerEventos();
         var evento = eventos.FirstOrDefault(e => e.Id == idEvento);
 
@@ -63,7 +61,6 @@ public class CompraService
             throw new InvalidOperationException("No se pueden comprar entradas para un evento cuya fecha ya pasó.");
         }
 
-        // 3. Buscar y validar modalidad
         var modalidad = evento.ObtenerModalidadPorId(idModalidad);
         if (modalidad == null)
         {
@@ -80,21 +77,17 @@ public class CompraService
             throw new InvalidOperationException($"No hay suficiente cupo disponible en '{modalidad.Nombre}'. Cupo restante: {modalidad.CupoDisponible}.");
         }
 
-        // 4. Descontar cupo
         modalidad.RegistrarVenta(cantidad);
 
-        // 5. Calcular total aplicando descuento por volumen (5 o más entradas: 15% de descuento)
         decimal total = modalidad.CalcularPrecio(cantidad);
         decimal precioEfectivoPorEntrada = Math.Round(total / cantidad, 2);
 
-        // 6. Recopilar todos los códigos existentes para asegurar 100% unicidad
         var comprasExistentes = _compraRepository.ObtenerCompras();
         var codigosExistentes = new HashSet<string>(
             comprasExistentes.SelectMany(c => c.Entradas).Select(e => e.Codigo),
             StringComparer.OrdinalIgnoreCase
         );
 
-        // 7. Crear la compra y generar cada entrada individual con su código único de 6 caracteres
         var nuevaCompra = new Compra(comprador.Dni, evento.Id, evento.Nombre, modalidad.Id, modalidad.Nombre, cantidad, modalidad.Precio, total);
 
         for (int i = 0; i < cantidad; i++)
@@ -104,7 +97,6 @@ public class CompraService
             nuevaCompra.AgregarEntrada(entrada);
         }
 
-        // 8. Persistir evento actualizado y nueva compra
         _eventoRepository.GuardarEventos(eventos);
         comprasExistentes.Add(nuevaCompra);
         _compraRepository.GuardarCompras(comprasExistentes);
@@ -119,7 +111,6 @@ public class CompraService
             throw new ArgumentException("El código de la entrada es obligatorio.");
         }
 
-        // Validar que quien solicita sea Comprador
         _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Comprador);
 
         var compras = _compraRepository.ObtenerCompras();
@@ -144,7 +135,6 @@ public class CompraService
             throw new KeyNotFoundException($"No se encontró ninguna entrada con el código '{codigo}'.");
         }
 
-        // Validar que la entrada pertenezca al comprador
         if (!compraContenedora.DniComprador.Equals(dniSolicitante.Trim(), StringComparison.OrdinalIgnoreCase))
         {
             throw new UnauthorizedAccessException("No tiene permiso para cancelar una entrada que no le pertenece.");
@@ -160,7 +150,6 @@ public class CompraService
             throw new InvalidOperationException("No se puede cancelar una entrada que ya fue utilizada para ingresar al evento.");
         }
 
-        // Validar que el evento no haya pasado
         var eventos = _eventoRepository.ObtenerEventos();
         var evento = eventos.FirstOrDefault(e => e.Id == entradaEncontrada.IdEvento);
         if (evento != null && evento.Fecha < DateTime.Now)
@@ -168,10 +157,8 @@ public class CompraService
             throw new InvalidOperationException("No se puede cancelar una entrada de un evento que ya finalizó o comenzó.");
         }
 
-        // Marcar como cancelada
         entradaEncontrada.CancelarEntrada();
 
-        // Restaurar cupo de la modalidad en el evento
         if (evento != null)
         {
             var modalidad = evento.ObtenerModalidadPorId(entradaEncontrada.IdModalidad);
@@ -179,7 +166,6 @@ public class CompraService
             _eventoRepository.GuardarEventos(eventos);
         }
 
-        // Persistir compra actualizada
         _compraRepository.GuardarCompras(compras);
 
         return entradaEncontrada;

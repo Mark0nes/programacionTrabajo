@@ -4,7 +4,6 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar controladores y serialización
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -21,7 +20,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API para la gestión de eventos, venta de entradas individuales con descuento por volumen y reportes de recaudación."
     });
 
-    // Permite ingresar el DNI en Swagger para probar endpoints con autorización de rol
     c.AddSecurityDefinition("DniHeader", new OpenApiSecurityScheme
     {
         Name = "X-Dni",
@@ -46,7 +44,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Habilitar CORS para permitir llamadas del frontend
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -57,7 +54,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Registrar repositorios y servicios de lógica
 builder.Services.AddSingleton<PersonaRepository>();
 builder.Services.AddSingleton<EventoRepository>();
 builder.Services.AddSingleton<CompraRepository>();
@@ -77,7 +73,6 @@ app.UseSwaggerUI(c =>
 
 app.UseCors();
 
-// Configurar archivos estaticos del frontend
 var frontendPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "..", "CarpetaFrontend"));
 if (!Directory.Exists(frontendPath))
 {
@@ -93,7 +88,6 @@ if (Directory.Exists(frontendPath))
         RequestPath = ""
     });
 
-    // Rutas limpias para navegar las pantallas del frontend
     app.MapGet("/", () => Results.File(Path.Combine(frontendPath, "index.html"), "text/html"));
     app.MapGet("/eventos", () => Results.File(Path.Combine(frontendPath, "eventos.html"), "text/html"));
     app.MapGet("/comprar-entrada", () => Results.File(Path.Combine(frontendPath, "comprar-entrada.html"), "text/html"));
@@ -103,7 +97,6 @@ if (Directory.Exists(frontendPath))
     app.MapGet("/reporte-recaudacion", () => Results.File(Path.Combine(frontendPath, "reporte-recaudacion.html"), "text/html"));
 }
 
-// Mapear rutas de los controladores
 app.MapControllers();
 
 app.Run();

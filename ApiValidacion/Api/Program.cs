@@ -3,7 +3,6 @@ using ValidacionEventos.Logica;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar controladores y serialización
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -21,7 +20,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Habilitar CORS para permitir llamadas del frontend
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -45,7 +43,6 @@ app.UseSwaggerUI(c =>
 
 app.UseCors();
 
-// Mapear rutas de los controladores
 app.MapControllers();
 
 app.Run();
