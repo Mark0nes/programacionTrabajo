@@ -1,5 +1,6 @@
 using GestionEventos.Data;
 using GestionEventos.Logica;
+using GestionEventos.Logica.Excepciones;
 
 namespace Testing;
 
@@ -80,7 +81,7 @@ public class GestionEventosTests
         var evento = _eventoService.Crear("Festival", "Desc", DateTime.Now.AddDays(10), "Estadio");
         var mod = _eventoService.AgregarModalidad(evento.Id, "VIP", 5000m, "Bar", 2);
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
+        var ex = Assert.Catch<InvalidOperationException>(() =>
         {
             _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 3);
         });
@@ -95,12 +96,12 @@ public class GestionEventosTests
         var mod = _eventoService.AgregarModalidad(evento.Id, "Platea", 2000m, "Ubicación fija", 100);
         _eventoService.Cancelar(evento.Id);
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
+        var ex = Assert.Catch<InvalidOperationException>(() =>
         {
             _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 1);
         });
 
-        Assert.That(ex!.Message, Does.Contain("evento cancelado"));
+        Assert.That(ex!.Message, Does.Contain("cancelado"));
     }
 
     [Test]
@@ -113,7 +114,7 @@ public class GestionEventosTests
         eventos.Add(eventoPasado);
         _eventoRepo.GuardarEventos(eventos);
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
+        var ex = Assert.Catch<InvalidOperationException>(() =>
         {
             _compraService.RealizarCompra("40123456", eventoPasado.Id, mod.Id, 1);
         });
@@ -145,13 +146,13 @@ public class GestionEventosTests
     public void ValidacionRoles_OrganizadorYComprador_AplicaRestriccionesCorrectas()
     {
         Assert.DoesNotThrow(() => _usuarioService.ValidarRol("30111222", RolUsuario.Organizador));
-        Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("30111222", RolUsuario.Comprador));
+        Assert.Catch<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("30111222", RolUsuario.Comprador));
 
         Assert.DoesNotThrow(() => _usuarioService.ValidarRol("40123456", RolUsuario.Comprador));
-        Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("40123456", RolUsuario.Organizador));
+        Assert.Catch<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("40123456", RolUsuario.Organizador));
 
-        Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("99999999", RolUsuario.Organizador));
-        Assert.Throws<UnauthorizedAccessException>(() => _usuarioService.ValidarRol(null, RolUsuario.Comprador));
+        Assert.Catch<UnauthorizedAccessException>(() => _usuarioService.ValidarRol("99999999", RolUsuario.Organizador));
+        Assert.Catch<UnauthorizedAccessException>(() => _usuarioService.ValidarRol(null, RolUsuario.Comprador));
     }
 
     [Test]
@@ -185,7 +186,7 @@ public class GestionEventosTests
         entrada.MarcarComoUsada();
         _compraRepo.GuardarCompras(new List<Compra> { compra });
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
+        var ex = Assert.Catch<InvalidOperationException>(() =>
         {
             _compraService.CancelarEntrada(entrada.Codigo, "40123456");
         });
@@ -239,7 +240,7 @@ public class GestionEventosTests
 
         _eventoService.CancelarModalidad(evento.Id, mod.Id);
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
+        var ex = Assert.Catch<InvalidOperationException>(() =>
         {
             _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 1);
         });
@@ -261,5 +262,120 @@ public class GestionEventosTests
 
         var evRecuperado = _eventoService.ObtenerPorId(evento.Id)!;
         Assert.That(evRecuperado.Cancelado, Is.True);
+    }
+
+    // =========================================================================
+    // Casos de borde solicitados por la corrección del profesor (Sección 5)
+    // =========================================================================
+
+    [Test]
+    public void RealizarCompra_DniInexistente_LanzaAccesoDenegadoException()
+    {
+        var evento = _eventoService.Crear("Festival Rock", "Desc", DateTime.Now.AddDays(10), "Estadio");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "General", 1000m, "Campo", 50);
+
+        var ex = Assert.Catch<UnauthorizedAccessException>(() =>
+        {
+            _compraService.RealizarCompra("99999999", evento.Id, mod.Id, 1);
+        });
+
+        Assert.That(ex, Is.TypeOf<AccesoDenegadoException>());
+        Assert.That(ex!.Message, Does.Contain("No existe"));
+    }
+
+    [Test]
+    public void RealizarCompra_OrganizadorIntentaComprar_LanzaAccesoDenegadoException()
+    {
+        var evento = _eventoService.Crear("Festival Rock", "Desc", DateTime.Now.AddDays(10), "Estadio");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "General", 1000m, "Campo", 50);
+
+        // DNI 30111222 tiene rol Organizador
+        var ex = Assert.Catch<UnauthorizedAccessException>(() =>
+        {
+            _compraService.RealizarCompra("30111222", evento.Id, mod.Id, 1);
+        });
+
+        Assert.That(ex, Is.TypeOf<AccesoDenegadoException>());
+        Assert.That(ex!.Message, Does.Contain("Comprador"));
+    }
+
+    [Test]
+    public void CancelarEntrada_CompradorCancelaEntradaDeOtroComprador_LanzaAccesoDenegadoException()
+    {
+        var evento = _eventoService.Crear("Recital Acústico", "Desc", DateTime.Now.AddDays(20), "Teatro");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "Platea", 1500m, "Fila A", 20);
+
+        // Sofía Gómez (40123456) compra una entrada
+        var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 1);
+        var entrada = compra.Entradas[0];
+
+        // Nicolás Pereyra (38456789) intenta cancelar la entrada de Sofía
+        var ex = Assert.Catch<UnauthorizedAccessException>(() =>
+        {
+            _compraService.CancelarEntrada(entrada.Codigo, "38456789");
+        });
+
+        Assert.That(ex, Is.TypeOf<AccesoDenegadoException>());
+        Assert.That(ex!.Message, Does.Contain("no le pertenece"));
+    }
+
+    [Test]
+    public void RealizarCompra_CompraExactamenteCuatroEntradas_NoAplicaDescuento()
+    {
+        var evento = _eventoService.Crear("Teatro Colón", "Desc", DateTime.Now.AddDays(15), "Sala Principal");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "Palco", 1000m, "Acceso VIP", 30);
+
+        var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 4);
+
+        // 4 entradas a $1000 = $4000 (el descuento del 15% sólo aplica a partir de 5 entradas)
+        Assert.That(compra.Total, Is.EqualTo(4000m));
+        Assert.That(compra.Entradas.Count, Is.EqualTo(4));
+        Assert.That(compra.PrecioUnitario, Is.EqualTo(1000m));
+    }
+
+    [Test]
+    public void RealizarCompra_UnicidadDeCodigosEntreComprasDistintas_TodosLosCodigosSonUnicos()
+    {
+        var evento = _eventoService.Crear("Festival Gigante", "Desc", DateTime.Now.AddDays(25), "Predio");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "General", 2000m, "Campo", 100);
+
+        var compra1 = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 5);
+        var compra2 = _compraService.RealizarCompra("38456789", evento.Id, mod.Id, 5);
+
+        var todosLosCodigos = new HashSet<string>();
+        foreach (var e in compra1.Entradas)
+        {
+            Assert.That(todosLosCodigos.Add(e.Codigo), Is.True);
+        }
+        foreach (var e in compra2.Entradas)
+        {
+            Assert.That(todosLosCodigos.Add(e.Codigo), Is.True, $"El código '{e.Codigo}' no debe duplicarse entre compras distintas.");
+        }
+
+        Assert.That(todosLosCodigos.Count, Is.EqualTo(10));
+    }
+
+    [Test]
+    public void ReporteRecaudacion_DespuesDeCancelarEntrada_DescuentaMontoDeLaEntradaCancelada()
+    {
+        var evento = _eventoService.Crear("Concierto Sinfónico", "Desc", DateTime.Now.AddDays(15), "Auditorio");
+        var mod = _eventoService.AgregarModalidad(evento.Id, "Platea", 1000m, "Fila 1", 20);
+
+        // Compra 5 entradas a $1000 con 15% de descuento = $4250 total ($850 cada una)
+        var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 5);
+        var entradaACancelar = compra.Entradas[0];
+
+        // Se cancela 1 entrada
+        _compraService.CancelarEntrada(entradaACancelar.Codigo, "40123456");
+
+        var reporte = _eventoService.ObtenerReporteRecaudacion();
+        var repEvento = reporte.Eventos.First(e => e.IdEvento == evento.Id);
+
+        // Quedan 4 entradas vendidas activas.
+        // Recaudación esperada: 4 * $850 = $3400 (se deduce la entrada cancelada del reporte, solucionando la inconsistencia G16)
+        Assert.That(repEvento.EntradasVendidas, Is.EqualTo(4));
+        Assert.That(repEvento.RecaudacionTotal, Is.EqualTo(3400m));
+        Assert.That(reporte.TotalGeneralEntradasVendidas, Is.EqualTo(4));
+        Assert.That(reporte.TotalGeneralRecaudado, Is.EqualTo(3400m));
     }
 }

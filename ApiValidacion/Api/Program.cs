@@ -1,4 +1,5 @@
 using Microsoft.OpenApi.Models;
+using ValidacionEventos.Data;
 using ValidacionEventos.Logica;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +31,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddSingleton<IValidacionCompraRepository, ValidacionCompraRepository>();
+builder.Services.AddSingleton<IValidacionEventoRepository, ValidacionEventoRepository>();
 builder.Services.AddSingleton<ValidadorEntradaService>();
 
 var app = builder.Build();

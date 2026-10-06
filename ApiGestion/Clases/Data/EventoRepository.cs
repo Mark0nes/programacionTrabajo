@@ -10,7 +10,7 @@ public class EventoRepository
 
     public EventoRepository(string? rutaArchivo = null)
     {
-        _rutaArchivo = rutaArchivo ?? (Directory.Exists("data") ? "data/eventos.json" : "../../data/eventos.json");
+        _rutaArchivo = rutaArchivo ?? DataPathHelper.ObtenerRuta("eventos.json");
     }
 
     public List<Evento> ObtenerEventos()

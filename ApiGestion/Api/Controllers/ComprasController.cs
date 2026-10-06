@@ -20,10 +20,15 @@ public class ComprasController : BaseApiController
     {
         try
         {
-            string dni = !string.IsNullOrWhiteSpace(dto.DniComprador) ? dto.DniComprador : (ObtenerDni() ?? string.Empty);
+            string? dni = ObtenerDni();
+            if (string.IsNullOrWhiteSpace(dni))
+            {
+                dni = dto.DniComprador;
+            }
+
             _usuarioService.ValidarRol(dni, RolUsuario.Comprador);
 
-            var compra = _compraService.RealizarCompra(dni, dto.IdEvento, dto.IdModalidad, dto.Cantidad);
+            var compra = _compraService.RealizarCompra(dni!, dto.IdEvento, dto.IdModalidad, dto.Cantidad);
             return Created($"/api/compras/{compra.Id}", compra);
         }
         catch (UnauthorizedAccessException ex)
@@ -57,6 +62,16 @@ public class ComprasController : BaseApiController
         {
             return Ok(_compraService.ObtenerPorDni(dniEfectivo));
         }
-        return Ok(_compraService.ObtenerTodas());
+
+        try
+        {
+            string? dniOrganizador = ObtenerDni();
+            _usuarioService.ValidarRol(dniOrganizador, RolUsuario.Organizador);
+            return Ok(_compraService.ObtenerTodas());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = "Para consultar el listado completo de compras sin filtrar por DNI se requiere rol Organizador." });
+        }
     }
 }

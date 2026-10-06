@@ -9,7 +9,7 @@ public class PersonaRepository
 
     public PersonaRepository(string? rutaArchivo = null)
     {
-        _rutaArchivo = rutaArchivo ?? (Directory.Exists("data") ? "data/usuarios.json" : "../../data/usuarios.json");
+        _rutaArchivo = rutaArchivo ?? DataPathHelper.ObtenerRuta("usuarios.json");
     }
 
     public List<Usuario> ObtenerUsuarios()

@@ -1,6 +1,73 @@
-@Api_HostAddress = http://localhost:5025
+@ApiGestion_HostAddress = http://localhost:5001
 
-GET {{Api_HostAddress}}/weatherforecast/
+### 1. Listar todos los usuarios
+GET {{ApiGestion_HostAddress}}/api/usuarios
 Accept: application/json
 
-###
+### 2. Obtener un usuario por DNI
+GET {{ApiGestion_HostAddress}}/api/usuarios/30111222
+Accept: application/json
+
+### 3. Listar todos los eventos
+GET {{ApiGestion_HostAddress}}/api/eventos
+Accept: application/json
+
+### 4. Obtener detalle de un evento por ID
+GET {{ApiGestion_HostAddress}}/api/eventos/a1111111-1111-1111-1111-111111111111
+Accept: application/json
+
+### 5. Crear un nuevo evento (Requiere rol Organizador en header X-Dni)
+POST {{ApiGestion_HostAddress}}/api/eventos
+Content-Type: application/json
+X-Dni: 30111222
+
+{
+  "nombre": "Festival Primavera Sound 2027",
+  "descripcion": "Festival internacional de música con múltiples escenarios.",
+  "fecha": "2027-11-15T18:00:00",
+  "lugar": "Parque Sarmiento, Buenos Aires",
+  "latitud": -34.5512,
+  "longitud": -58.4983
+}
+
+### 6. Agregar una modalidad a un evento (Requiere rol Organizador)
+POST {{ApiGestion_HostAddress}}/api/eventos/a1111111-1111-1111-1111-111111111111/modalidades
+Content-Type: application/json
+X-Dni: 30111222
+
+{
+  "nombre": "Pase VIP Lounge",
+  "precio": 45000,
+  "beneficios": "Acceso preferencial, barra libre y catering exclusivo",
+  "cupoMaximo": 50
+}
+
+### 7. Realizar una compra de entradas (Comprador con X-Dni o Dni en body)
+POST {{ApiGestion_HostAddress}}/api/compras
+Content-Type: application/json
+X-Dni: 40123456
+
+{
+  "dniComprador": "40123456",
+  "idEvento": "a1111111-1111-1111-1111-111111111111",
+  "idModalidad": "b1111111-1111-1111-1111-111111111111",
+  "cantidad": 5
+}
+
+### 8. Listar compras de un comprador específico
+GET {{ApiGestion_HostAddress}}/api/compras?dni=40123456
+Accept: application/json
+
+### 9. Listar todas las compras del sistema (Sólo Organizador con X-Dni)
+GET {{ApiGestion_HostAddress}}/api/compras
+Accept: application/json
+X-Dni: 30111222
+
+### 10. Cancelar una entrada individual (Requiere rol Comprador dueño de la entrada en header X-Dni)
+DELETE {{ApiGestion_HostAddress}}/api/entradas/OMJ4YL
+X-Dni: 40123456
+
+### 11. Obtener reporte de recaudación (Sólo Organizador con X-Dni)
+GET {{ApiGestion_HostAddress}}/api/reportes/recaudacion
+Accept: application/json
+X-Dni: 30111222

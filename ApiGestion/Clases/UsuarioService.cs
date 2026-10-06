@@ -1,14 +1,15 @@
 namespace GestionEventos.Logica;
 
 using GestionEventos.Data;
+using GestionEventos.Logica.Excepciones;
 
 public class UsuarioService
 {
     private readonly PersonaRepository _personaRepository;
 
-    public UsuarioService(PersonaRepository? personaRepository = null)
+    public UsuarioService(PersonaRepository personaRepository)
     {
-        _personaRepository = personaRepository ?? new PersonaRepository();
+        _personaRepository = personaRepository ?? throw new ArgumentNullException(nameof(personaRepository));
     }
 
     public List<Usuario> ObtenerTodos()
@@ -27,18 +28,18 @@ public class UsuarioService
     {
         if (string.IsNullOrWhiteSpace(dni))
         {
-            throw new UnauthorizedAccessException("Se requiere especificar el DNI del usuario que realiza la operación.");
+            throw new AccesoDenegadoException("Se requiere especificar el DNI del usuario que realiza la operación.");
         }
 
         var usuario = ObtenerPorDni(dni);
         if (usuario == null)
         {
-            throw new UnauthorizedAccessException($"No existe ningún usuario registrado con el DNI '{dni}'.");
+            throw new AccesoDenegadoException($"No existe ningún usuario registrado con el DNI '{dni}'.");
         }
 
         if (usuario.Rol != rolEsperado)
         {
-            throw new UnauthorizedAccessException($"Acción no permitida: el usuario {usuario.Nombre} tiene rol '{usuario.Rol}' pero se requiere rol '{rolEsperado}'.");
+            throw new AccesoDenegadoException($"Acción no permitida: el usuario {usuario.Nombre} tiene rol '{usuario.Rol}' pero se requiere rol '{rolEsperado}'.");
         }
 
         return usuario;

@@ -183,6 +183,7 @@ public class ValidacionEntradasTests
         var resultado = _validador.ValidarEntrada(CodigoCancelado, _evento1Id);
 
         Assert.That(resultado.Exitoso, Is.False);
+        Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.Cancelada));
         Assert.That(resultado.Mensaje, Does.Contain("cancelada"));
     }
 

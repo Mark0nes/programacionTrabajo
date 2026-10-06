@@ -1,6 +1,7 @@
 namespace GestionEventos.Logica;
 
 using GestionEventos.Data;
+using GestionEventos.Logica.Excepciones;
 
 public class CompraService
 {
@@ -8,11 +9,11 @@ public class CompraService
     private readonly EventoRepository _eventoRepository;
     private readonly UsuarioService _usuarioService;
 
-    public CompraService(CompraRepository? compraRepository = null, EventoRepository? eventoRepository = null, UsuarioService? usuarioService = null)
+    public CompraService(CompraRepository compraRepository, EventoRepository eventoRepository, UsuarioService usuarioService)
     {
-        _compraRepository = compraRepository ?? new CompraRepository();
-        _eventoRepository = eventoRepository ?? new EventoRepository();
-        _usuarioService = usuarioService ?? new UsuarioService();
+        _compraRepository = compraRepository ?? throw new ArgumentNullException(nameof(compraRepository));
+        _eventoRepository = eventoRepository ?? throw new ArgumentNullException(nameof(eventoRepository));
+        _usuarioService = usuarioService ?? throw new ArgumentNullException(nameof(usuarioService));
     }
 
     public List<Compra> ObtenerTodas()
@@ -48,33 +49,33 @@ public class CompraService
 
         if (evento == null)
         {
-            throw new KeyNotFoundException($"No se encontró el evento con ID '{idEvento}'.");
+            throw new EntidadNoEncontradaException($"No se encontró el evento con ID '{idEvento}'.");
         }
 
         if (evento.Cancelado)
         {
-            throw new InvalidOperationException("No se pueden comprar entradas para un evento cancelado.");
+            throw new ReglaNegocioException("No se pueden comprar entradas para un evento cancelado.");
         }
 
         if (evento.Fecha < DateTime.Now)
         {
-            throw new InvalidOperationException("No se pueden comprar entradas para un evento cuya fecha ya pasó.");
+            throw new ReglaNegocioException("No se pueden comprar entradas para un evento cuya fecha ya pasó.");
         }
 
         var modalidad = evento.ObtenerModalidadPorId(idModalidad);
         if (modalidad == null)
         {
-            throw new KeyNotFoundException($"No se encontró la modalidad con ID '{idModalidad}' en el evento.");
+            throw new EntidadNoEncontradaException($"No se encontró la modalidad con ID '{idModalidad}' en el evento.");
         }
 
         if (modalidad.Cancelada)
         {
-            throw new InvalidOperationException($"La modalidad '{modalidad.Nombre}' ha sido cancelada.");
+            throw new ReglaNegocioException($"La modalidad '{modalidad.Nombre}' ha sido cancelada.");
         }
 
         if (!modalidad.HayCupoDisponible(cantidad))
         {
-            throw new InvalidOperationException($"No hay suficiente cupo disponible en '{modalidad.Nombre}'. Cupo restante: {modalidad.CupoDisponible}.");
+            throw new CupoInsuficienteException($"No hay suficiente cupo disponible en '{modalidad.Nombre}'. Cupo restante: {modalidad.CupoDisponible}.");
         }
 
         modalidad.RegistrarVenta(cantidad);
@@ -132,32 +133,33 @@ public class CompraService
 
         if (entradaEncontrada == null || compraContenedora == null)
         {
-            throw new KeyNotFoundException($"No se encontró ninguna entrada con el código '{codigo}'.");
+            throw new EntidadNoEncontradaException($"No se encontró ninguna entrada con el código '{codigo}'.");
         }
 
         if (!compraContenedora.DniComprador.Equals(dniSolicitante.Trim(), StringComparison.OrdinalIgnoreCase))
         {
-            throw new UnauthorizedAccessException("No tiene permiso para cancelar una entrada que no le pertenece.");
+            throw new AccesoDenegadoException("No tiene permiso para cancelar una entrada que no le pertenece.");
         }
 
         if (entradaEncontrada.Cancelada)
         {
-            throw new InvalidOperationException("La entrada ya se encuentra cancelada.");
+            throw new ReglaNegocioException("La entrada ya se encuentra cancelada.");
         }
 
         if (entradaEncontrada.Usada)
         {
-            throw new InvalidOperationException("No se puede cancelar una entrada que ya fue utilizada para ingresar al evento.");
+            throw new ReglaNegocioException("No se puede cancelar una entrada que ya fue utilizada para ingresar al evento.");
         }
 
         var eventos = _eventoRepository.ObtenerEventos();
         var evento = eventos.FirstOrDefault(e => e.Id == entradaEncontrada.IdEvento);
         if (evento != null && evento.Fecha < DateTime.Now)
         {
-            throw new InvalidOperationException("No se puede cancelar una entrada de un evento que ya finalizó o comenzó.");
+            throw new ReglaNegocioException("No se puede cancelar una entrada de un evento que ya finalizó o comenzó.");
         }
 
         entradaEncontrada.CancelarEntrada();
+        compraContenedora.RecalcularTotal();
 
         if (evento != null)
         {

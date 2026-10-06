@@ -1,6 +1,7 @@
 namespace GestionEventos.Logica;
 
 using GestionEventos.Data;
+using GestionEventos.Logica.Excepciones;
 
 public class EventoService
 {
@@ -8,11 +9,11 @@ public class EventoService
     private readonly CompraRepository _compraRepository;
     private readonly UsuarioService _usuarioService;
 
-    public EventoService(EventoRepository? eventoRepository = null, CompraRepository? compraRepository = null, UsuarioService? usuarioService = null)
+    public EventoService(EventoRepository eventoRepository, CompraRepository compraRepository, UsuarioService usuarioService)
     {
-        _eventoRepository = eventoRepository ?? new EventoRepository();
-        _compraRepository = compraRepository ?? new CompraRepository();
-        _usuarioService = usuarioService ?? new UsuarioService();
+        _eventoRepository = eventoRepository ?? throw new ArgumentNullException(nameof(eventoRepository));
+        _compraRepository = compraRepository ?? throw new ArgumentNullException(nameof(compraRepository));
+        _usuarioService = usuarioService ?? throw new ArgumentNullException(nameof(usuarioService));
     }
 
     public List<Evento> ObtenerTodos()
@@ -52,12 +53,12 @@ public class EventoService
 
         if (evento == null)
         {
-            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{id}'.");
+            throw new EntidadNoEncontradaException($"No se encontró ningún evento con ID '{id}'.");
         }
 
         if (evento.Cancelado)
         {
-            throw new InvalidOperationException("No se puede modificar un evento que ya fue cancelado.");
+            throw new ReglaNegocioException("No se puede modificar un evento que ya fue cancelado.");
         }
 
         if (fecha < DateTime.Now)
@@ -83,7 +84,7 @@ public class EventoService
 
         if (evento == null)
         {
-            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{id}'.");
+            throw new EntidadNoEncontradaException($"No se encontró ningún evento con ID '{id}'.");
         }
 
         if (evento.Cancelado)
@@ -103,12 +104,12 @@ public class EventoService
 
         if (evento == null)
         {
-            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{idEvento}'.");
+            throw new EntidadNoEncontradaException($"No se encontró ningún evento con ID '{idEvento}'.");
         }
 
         if (evento.Cancelado)
         {
-            throw new InvalidOperationException("No se pueden agregar modalidades a un evento cancelado.");
+            throw new ReglaNegocioException("No se pueden agregar modalidades a un evento cancelado.");
         }
 
         var modalidad = new Modalidad(nombre, precio, beneficios, cupoMaximo);
@@ -125,13 +126,13 @@ public class EventoService
 
         if (evento == null)
         {
-            throw new KeyNotFoundException($"No se encontró ningún evento con ID '{idEvento}'.");
+            throw new EntidadNoEncontradaException($"No se encontró ningún evento con ID '{idEvento}'.");
         }
 
         var modalidad = evento.ObtenerModalidadPorId(idModalidad);
         if (modalidad == null)
         {
-            throw new KeyNotFoundException($"No se encontró ninguna modalidad con ID '{idModalidad}' en el evento.");
+            throw new EntidadNoEncontradaException($"No se encontró ninguna modalidad con ID '{idModalidad}' en el evento.");
         }
 
         modalidad.Cancelar();
@@ -158,21 +159,23 @@ public class EventoService
                 Fecha = evento.Fecha,
                 Lugar = evento.Lugar,
                 Cancelado = evento.Cancelado,
-                EntradasVendidas = comprasEvento.Sum(c => c.Entradas.Count(e => !e.Cancelada)),
-                RecaudacionTotal = comprasEvento.Sum(c => c.Total)
+                EntradasVendidas = comprasEvento.SelectMany(c => c.Entradas).Count(e => !e.Cancelada),
+                RecaudacionTotal = comprasEvento.SelectMany(c => c.Entradas).Where(e => !e.Cancelada).Sum(e => e.PrecioUnitario)
             };
 
             foreach (var compra in comprasEvento)
             {
-                int cantActivas = compra.Entradas.Count(e => !e.Cancelada);
+                var entradasActivas = compra.Entradas.Where(e => !e.Cancelada).ToList();
+                int cantActivas = entradasActivas.Count;
                 if (cantActivas > 0)
                 {
+                    decimal totalActivo = entradasActivas.Sum(e => e.PrecioUnitario);
                     var nombreUsuario = usuarios.FirstOrDefault(u => u.Dni.Equals(compra.DniComprador, StringComparison.OrdinalIgnoreCase))?.Nombre ?? $"DNI {compra.DniComprador}";
                     var existente = repEvento.Compradores.FirstOrDefault(c => c.Dni.Equals(compra.DniComprador, StringComparison.OrdinalIgnoreCase));
                     if (existente != null)
                     {
                         existente.CantidadEntradas += cantActivas;
-                        existente.Total += compra.Total;
+                        existente.Total += totalActivo;
                     }
                     else
                     {
@@ -181,7 +184,7 @@ public class EventoService
                             Dni = compra.DniComprador,
                             Nombre = nombreUsuario,
                             CantidadEntradas = cantActivas,
-                            Total = compra.Total
+                            Total = totalActivo
                         });
                     }
                 }
@@ -190,8 +193,8 @@ public class EventoService
             foreach (var mod in evento.Modalidades)
             {
                 var comprasMod = comprasEvento.Where(c => c.IdModalidad == mod.Id).ToList();
-                int vendidas = comprasMod.Sum(c => c.Entradas.Count(e => !e.Cancelada));
-                decimal recaudado = comprasMod.Sum(c => c.Total);
+                int vendidas = comprasMod.SelectMany(c => c.Entradas).Count(e => !e.Cancelada);
+                decimal recaudado = comprasMod.SelectMany(c => c.Entradas).Where(e => !e.Cancelada).Sum(e => e.PrecioUnitario);
 
                 repEvento.Modalidades.Add(new ReporteModalidadDto
                 {

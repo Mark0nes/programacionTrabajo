@@ -1,14 +1,34 @@
 namespace GestionEventos.Logica;
 
+using Newtonsoft.Json;
+using System.Text.Json.Serialization;
+using GestionEventos.Logica.Excepciones;
+
 public class Modalidad
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    [JsonProperty]
+    [JsonInclude]
+    public Guid Id { get; private set; } = Guid.NewGuid();
+
     public string Nombre { get; set; } = string.Empty;
-    public decimal Precio { get; set; }
+
+    [JsonProperty]
+    [JsonInclude]
+    public decimal Precio { get; private set; }
+
     public string Beneficios { get; set; } = string.Empty;
-    public int CupoMaximo { get; set; }
-    public int CupoDisponible { get; set; }
-    public bool Cancelada { get; set; } = false;
+
+    [JsonProperty]
+    [JsonInclude]
+    public int CupoMaximo { get; private set; }
+
+    [JsonProperty]
+    [JsonInclude]
+    public int CupoDisponible { get; private set; }
+
+    [JsonProperty]
+    [JsonInclude]
+    public bool Cancelada { get; private set; } = false;
 
     public Modalidad()
     {
@@ -54,7 +74,7 @@ public class Modalidad
     {
         if (Cancelada)
         {
-            throw new InvalidOperationException("No se pueden vender entradas para una modalidad cancelada.");
+            throw new ReglaNegocioException("No se pueden vender entradas para una modalidad cancelada.");
         }
 
         if (cantidad <= 0)
@@ -64,7 +84,7 @@ public class Modalidad
 
         if (CupoDisponible < cantidad)
         {
-            throw new InvalidOperationException("No hay suficiente cupo disponible.");
+            throw new CupoInsuficienteException($"No hay suficiente cupo disponible en '{Nombre}'. Cupo restante: {CupoDisponible}.");
         }
 
         CupoDisponible -= cantidad;

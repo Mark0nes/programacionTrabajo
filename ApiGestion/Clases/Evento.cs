@@ -1,16 +1,29 @@
 namespace GestionEventos.Logica;
 
+using Newtonsoft.Json;
+using System.Text.Json.Serialization;
+using GestionEventos.Logica.Excepciones;
+
 public class Evento
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    [JsonProperty]
+    [JsonInclude]
+    public Guid Id { get; private set; } = Guid.NewGuid();
+
     public string Nombre { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
     public DateTime Fecha { get; set; }
     public string Lugar { get; set; } = string.Empty;
     public double? Latitud { get; set; }
     public double? Longitud { get; set; }
-    public bool Cancelado { get; set; }
-    public List<Modalidad> Modalidades { get; set; } = new List<Modalidad>();
+
+    [JsonProperty]
+    [JsonInclude]
+    public bool Cancelado { get; private set; }
+
+    [JsonProperty]
+    [JsonInclude]
+    public List<Modalidad> Modalidades { get; private set; } = new List<Modalidad>();
 
     public Evento()
     {
@@ -44,6 +57,11 @@ public class Evento
         if (modalidad == null)
         {
             throw new ArgumentNullException(nameof(modalidad), "La modalidad no puede ser nula.");
+        }
+
+        if (Cancelado)
+        {
+            throw new ReglaNegocioException("No se pueden agregar modalidades a un evento cancelado.");
         }
 
         Modalidades ??= new List<Modalidad>();

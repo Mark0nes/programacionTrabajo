@@ -6,5 +6,6 @@ public enum EstadoValidacion
     NoExiste,
     YaFueUsada,
     EventoIncorrecto,
-    EventoCancelado
+    EventoCancelado,
+    Cancelada
 }

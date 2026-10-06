@@ -57,7 +57,6 @@ builder.Services.AddCors(options =>
 builder.Services.AddSingleton<PersonaRepository>();
 builder.Services.AddSingleton<EventoRepository>();
 builder.Services.AddSingleton<CompraRepository>();
-builder.Services.AddSingleton<EntradaRepository>();
 builder.Services.AddSingleton<UsuarioService>();
 builder.Services.AddSingleton<EventoService>();
 builder.Services.AddSingleton<CompraService>();

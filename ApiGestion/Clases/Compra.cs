@@ -1,17 +1,52 @@
 namespace GestionEventos.Logica;
 
+using Newtonsoft.Json;
+using System.Text.Json.Serialization;
+
 public class Compra
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public string DniComprador { get; set; } = string.Empty;
-    public DateTime FechaCompra { get; set; } = DateTime.Now;
-    public Guid IdEvento { get; set; }
-    public string NombreEvento { get; set; } = string.Empty;
-    public Guid IdModalidad { get; set; }
-    public string NombreModalidad { get; set; } = string.Empty;
-    public int Cantidad { get; set; }
-    public decimal PrecioUnitario { get; set; }
+    [JsonProperty]
+    [JsonInclude]
+    public Guid Id { get; private set; } = Guid.NewGuid();
+
+    [JsonProperty]
+    [JsonInclude]
+    public string DniComprador { get; private set; } = string.Empty;
+
+    [JsonProperty]
+    [JsonInclude]
+    public DateTime FechaCompra { get; private set; } = DateTime.Now;
+
+    [JsonProperty]
+    [JsonInclude]
+    public Guid IdEvento { get; private set; }
+
+    [JsonProperty]
+    [JsonInclude]
+    public string NombreEvento { get; private set; } = string.Empty;
+
+    [JsonProperty]
+    [JsonInclude]
+    public Guid IdModalidad { get; private set; }
+
+    [JsonProperty]
+    [JsonInclude]
+    public string NombreModalidad { get; private set; } = string.Empty;
+
+    [JsonProperty]
+    [JsonInclude]
+    public int Cantidad { get; private set; }
+
+    [JsonProperty]
+    [JsonInclude]
+    public decimal PrecioUnitario { get; private set; }
+
+    [JsonProperty]
+    [JsonInclude]
     public decimal Total { get; set; }
+
+    [JsonProperty]
+    [JsonInclude]
     public List<Entrada> Entradas { get; set; } = new List<Entrada>();
 
     public Compra()
@@ -47,5 +82,10 @@ public class Compra
     {
         Entradas ??= new List<Entrada>();
         Entradas.Add(entrada);
+    }
+
+    public void RecalcularTotal()
+    {
+        Total = Entradas?.Where(e => !e.Cancelada).Sum(e => e.PrecioUnitario) ?? 0m;
     }
 }
