@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using ValidacionEventos.Logica;
+using ValidacionEventos.Api.DTOs;
 
 namespace ValidacionEventos.Api.Controllers;
 
@@ -19,12 +20,7 @@ public class ValidacionesController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(dto.Codigo))
         {
-            return BadRequest(new ResultadoValidacion
-            {
-                Exitoso = false,
-                Estado = EstadoValidacion.NoExiste,
-                Mensaje = "El código de entrada es obligatorio."
-            });
+            return BadRequest(new ResultadoValidacion(false, EstadoValidacion.NoExiste, "El código no puede estar vacío."));
         }
 
         var resultado = _validador.ValidarEntrada(dto.Codigo, dto.IdEvento);
@@ -37,5 +33,3 @@ public class ValidacionesController : ControllerBase
         return BadRequest(resultado);
     }
 }
-
-public record ValidarEntradaDto(string Codigo, Guid? IdEvento);

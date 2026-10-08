@@ -140,28 +140,19 @@ public class EventoService
         return modalidad;
     }
 
-    public ReporteRecaudacionDto ObtenerReporteRecaudacion()
+    public ReporteRecaudacion ObtenerReporteRecaudacion()
     {
         var eventos = _eventoRepository.ObtenerEventos();
         var compras = _compraRepository.ObtenerCompras();
         var usuarios = _usuarioService.ObtenerTodos();
 
-        var reporte = new ReporteRecaudacionDto();
+        var reporte = new ReporteRecaudacion();
 
         foreach (var evento in eventos)
         {
             var comprasEvento = compras.Where(c => c.IdEvento == evento.Id).ToList();
 
-            var repEvento = new ReporteEventoDto
-            {
-                IdEvento = evento.Id,
-                NombreEvento = evento.Nombre,
-                Fecha = evento.Fecha,
-                Lugar = evento.Lugar,
-                Cancelado = evento.Cancelado,
-                EntradasVendidas = comprasEvento.SelectMany(c => c.Entradas).Count(e => !e.Cancelada),
-                RecaudacionTotal = comprasEvento.SelectMany(c => c.Entradas).Where(e => !e.Cancelada).Sum(e => e.PrecioUnitario)
-            };
+            var repEvento = new ReporteEvento(evento.Id, evento.Nombre, evento.Fecha, evento.Lugar, evento.Cancelado, 0, 0);
 
             foreach (var compra in comprasEvento)
             {
@@ -174,18 +165,11 @@ public class EventoService
                     var existente = repEvento.Compradores.FirstOrDefault(c => c.Dni.Equals(compra.DniComprador, StringComparison.OrdinalIgnoreCase));
                     if (existente != null)
                     {
-                        existente.CantidadEntradas += cantActivas;
-                        existente.Total += totalActivo;
+                        existente.AgregarEntradas(cantActivas, totalActivo);
                     }
                     else
                     {
-                        repEvento.Compradores.Add(new ReporteCompradorDto
-                        {
-                            Dni = compra.DniComprador,
-                            Nombre = nombreUsuario,
-                            CantidadEntradas = cantActivas,
-                            Total = totalActivo
-                        });
+                        repEvento.Compradores.Add(new ReporteComprador(compra.DniComprador, nombreUsuario, cantActivas, totalActivo));
                     }
                 }
             }
@@ -196,24 +180,13 @@ public class EventoService
                 int vendidas = comprasMod.SelectMany(c => c.Entradas).Count(e => !e.Cancelada);
                 decimal recaudado = comprasMod.SelectMany(c => c.Entradas).Where(e => !e.Cancelada).Sum(e => e.PrecioUnitario);
 
-                repEvento.Modalidades.Add(new ReporteModalidadDto
-                {
-                    IdModalidad = mod.Id,
-                    NombreModalidad = mod.Nombre,
-                    PrecioUnitario = mod.Precio,
-                    CupoMaximo = mod.CupoMaximo,
-                    CupoDisponible = mod.CupoDisponible,
-                    EntradasVendidas = vendidas,
-                    Recaudacion = recaudado,
-                    Cancelada = mod.Cancelada
-                });
+                repEvento.Modalidades.Add(new ReporteModalidad(mod.Id, mod.Nombre, mod.Precio, mod.CupoMaximo, mod.CupoDisponible, vendidas, recaudado, mod.Cancelada));
             }
 
             reporte.Eventos.Add(repEvento);
         }
 
-        reporte.TotalGeneralRecaudado = reporte.Eventos.Sum(e => e.RecaudacionTotal);
-        reporte.TotalGeneralEntradasVendidas = reporte.Eventos.Sum(e => e.EntradasVendidas);
+        reporte.ActualizarTotales();
 
         return reporte;
     }

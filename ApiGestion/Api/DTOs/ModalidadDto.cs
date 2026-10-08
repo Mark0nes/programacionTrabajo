@@ -1,3 +1,3 @@
-namespace GestionEventos.Api.Dto;
+namespace GestionEventos.Api.DTOs;
 
-public record CrearModalidadDto(string Nombre, decimal Precio, string Beneficios, int CupoMaximo);
+public record ModalidadDto(string Nombre, decimal Precio, string Beneficios, int CupoMaximo);

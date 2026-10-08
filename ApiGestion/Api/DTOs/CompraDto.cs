@@ -1,3 +1,3 @@
-namespace GestionEventos.Api.Dto;
+namespace GestionEventos.Api.DTOs;
 
-public record RealizarCompraDto(string? DniComprador, Guid IdEvento, Guid IdModalidad, int Cantidad);
+public record CompraDto(string? DniComprador, Guid IdEvento, Guid IdModalidad, int Cantidad);

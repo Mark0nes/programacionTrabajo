@@ -1,4 +1,5 @@
 using GestionEventos.Logica;
+using GestionEventos.Api.DTOs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionEventos.Api.Controllers;
@@ -31,7 +32,7 @@ public class EventosController : BaseApiController
     }
 
     [HttpPost]
-    public IActionResult Crear([FromBody] CrearEventoDto dto)
+    public IActionResult Crear([FromBody] EventoDto dto)
     {
         try
         {
@@ -52,7 +53,7 @@ public class EventosController : BaseApiController
     }
 
     [HttpPut("{id:guid}")]
-    public IActionResult Modificar(Guid id, [FromBody] ModificarEventoDto dto)
+    public IActionResult Modificar(Guid id, [FromBody] EventoDto dto)
     {
         try
         {
@@ -98,7 +99,7 @@ public class EventosController : BaseApiController
     }
 
     [HttpPost("{id:guid}/modalidades")]
-    public IActionResult AgregarModalidad(Guid id, [FromBody] CrearModalidadDto dto)
+    public IActionResult AgregarModalidad(Guid id, [FromBody] ModalidadDto dto)
     {
         try
         {

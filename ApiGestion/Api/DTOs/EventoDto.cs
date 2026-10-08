@@ -1,5 +1,3 @@
-namespace GestionEventos.Api.Dto;
+namespace GestionEventos.Api.DTOs;
 
-public record CrearEventoDto(string Nombre, string Descripcion, DateTime Fecha, string Lugar, double? Latitud, double? Longitud);
-
-public record ModificarEventoDto(string Nombre, string Descripcion, DateTime Fecha, string Lugar, double? Latitud, double? Longitud);
+public record EventoDto(string Nombre, string Descripcion, DateTime Fecha, string Lugar, double? Latitud, double? Longitud);

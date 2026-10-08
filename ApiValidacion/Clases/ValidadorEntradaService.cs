@@ -5,10 +5,10 @@ using ValidacionEventos.Dominio;
 
 public class ValidadorEntradaService
 {
-    private readonly IValidacionCompraRepository _compraRepository;
-    private readonly IValidacionEventoRepository _eventoRepository;
+    private readonly ValidacionCompraRepository _compraRepository;
+    private readonly ValidacionEventoRepository _eventoRepository;
 
-    public ValidadorEntradaService(IValidacionCompraRepository compraRepository, IValidacionEventoRepository eventoRepository)
+    public ValidadorEntradaService(ValidacionCompraRepository compraRepository, ValidacionEventoRepository eventoRepository)
     {
         _compraRepository = compraRepository ?? throw new ArgumentNullException(nameof(compraRepository));
         _eventoRepository = eventoRepository ?? throw new ArgumentNullException(nameof(eventoRepository));
@@ -23,12 +23,7 @@ public class ValidadorEntradaService
     {
         if (string.IsNullOrWhiteSpace(codigo))
         {
-            return new ResultadoValidacion
-            {
-                Exitoso = false,
-                Estado = EstadoValidacion.NoExiste,
-                Mensaje = "El código de la entrada no puede estar vacío."
-            };
+            return new ResultadoValidacion(false, EstadoValidacion.NoExiste, "El código no puede estar vacío.");
         }
 
         string codigoBuscado = codigo.Trim().ToUpperInvariant();
@@ -52,13 +47,7 @@ public class ValidadorEntradaService
 
         if (entradaEncontrada == null)
         {
-            return new ResultadoValidacion
-            {
-                Exitoso = false,
-                Estado = EstadoValidacion.NoExiste,
-                Codigo = codigoBuscado,
-                Mensaje = $"La entrada con código '{codigoBuscado}' no existe en el sistema."
-            };
+            return new ResultadoValidacion(false, EstadoValidacion.NoExiste, $"La entrada con código '{codigoBuscado}' no existe en el sistema.", codigoBuscado);
         }
 
         string nombreEvento = !string.IsNullOrWhiteSpace(entradaEncontrada.NombreEvento)
@@ -68,78 +57,31 @@ public class ValidadorEntradaService
             ? entradaEncontrada.NombreModalidad
             : "Modalidad";
 
-        // 1. Entrada cancelada previamente por el comprador
         if (entradaEncontrada.Cancelada)
         {
-            return new ResultadoValidacion
-            {
-                Exitoso = false,
-                Estado = EstadoValidacion.Cancelada,
-                Codigo = codigoBuscado,
-                NombreEvento = nombreEvento,
-                NombreModalidad = nombreModalidad,
-                Mensaje = $"La entrada '{codigoBuscado}' fue cancelada previamente por el comprador."
-            };
+            return new ResultadoValidacion(false, EstadoValidacion.Cancelada, $"La entrada '{codigoBuscado}' fue cancelada previamente por el comprador.", codigoBuscado, nombreEvento, nombreModalidad);
         }
 
-        // 2. Entrada de otro evento (si se especificó idEvento)
         if (idEvento.HasValue && idEvento.Value != Guid.Empty && idEvento.Value != entradaEncontrada.IdEvento)
         {
-            return new ResultadoValidacion
-            {
-                Exitoso = false,
-                Estado = EstadoValidacion.EventoIncorrecto,
-                Codigo = codigoBuscado,
-                NombreEvento = nombreEvento,
-                NombreModalidad = nombreModalidad,
-                Mensaje = $"La entrada no corresponde a este evento (es para '{nombreEvento}')."
-            };
+            return new ResultadoValidacion(false, EstadoValidacion.EventoIncorrecto, $"La entrada no corresponde a este evento (es para '{nombreEvento}').", codigoBuscado, nombreEvento, nombreModalidad);
         }
 
-        // 3. Evento cancelado
         var evento = _eventoRepository.ObtenerPorId(entradaEncontrada.IdEvento);
         if (evento != null && evento.Cancelado)
         {
-            return new ResultadoValidacion
-            {
-                Exitoso = false,
-                Estado = EstadoValidacion.EventoCancelado,
-                Codigo = codigoBuscado,
-                NombreEvento = nombreEvento,
-                NombreModalidad = nombreModalidad,
-                Mensaje = $"El evento '{nombreEvento}' ha sido cancelado. Ingreso denegado."
-            };
+            return new ResultadoValidacion(false, EstadoValidacion.EventoCancelado, $"El evento '{nombreEvento}' ha sido cancelado. Ingreso denegado.", codigoBuscado, nombreEvento, nombreModalidad);
         }
 
-        // 4. Entrada ya utilizada
         if (entradaEncontrada.Usada)
         {
-            return new ResultadoValidacion
-            {
-                Exitoso = false,
-                Estado = EstadoValidacion.YaFueUsada,
-                Codigo = codigoBuscado,
-                NombreEvento = nombreEvento,
-                NombreModalidad = nombreModalidad,
-                FechaUso = entradaEncontrada.FechaUso,
-                Mensaje = $"La entrada ya fue utilizada el {entradaEncontrada.FechaUso:dd/MM/yyyy HH:mm:ss}."
-            };
+            return new ResultadoValidacion(false, EstadoValidacion.YaFueUsada, $"La entrada ya fue utilizada el {entradaEncontrada.FechaUso:dd/MM/yyyy HH:mm:ss}.", codigoBuscado, nombreEvento, nombreModalidad, entradaEncontrada.FechaUso);
         }
 
-        // 5. Ingreso autorizado - Marcar como usada y persistir mediante repositorio
         DateTime ahora = DateTime.Now;
         entradaEncontrada.MarcarComoUsada(ahora);
         _compraRepository.GuardarCompras(compras);
 
-        return new ResultadoValidacion
-        {
-            Exitoso = true,
-            Estado = EstadoValidacion.Valida,
-            Codigo = codigoBuscado,
-            NombreEvento = nombreEvento,
-            NombreModalidad = nombreModalidad,
-            FechaUso = ahora,
-            Mensaje = $"Ingreso autorizado para '{nombreEvento}' — Modalidad: {nombreModalidad}."
-        };
+        return new ResultadoValidacion(true, EstadoValidacion.Valida, $"Ingreso autorizado para '{nombreEvento}' — Modalidad: {nombreModalidad}.", codigoBuscado, nombreEvento, nombreModalidad, ahora);
     }
 }

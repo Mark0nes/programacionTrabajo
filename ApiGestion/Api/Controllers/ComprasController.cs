@@ -1,4 +1,5 @@
 using GestionEventos.Logica;
+using GestionEventos.Api.DTOs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionEventos.Api.Controllers;
@@ -16,7 +17,7 @@ public class ComprasController : BaseApiController
     }
 
     [HttpPost]
-    public IActionResult RegistrarCompra([FromBody] RealizarCompraDto dto)
+    public IActionResult RegistrarCompra([FromBody] CompraDto dto)
     {
         try
         {
