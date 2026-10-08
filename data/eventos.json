@@ -88,5 +88,56 @@
         "Cancelada": false
       }
     ]
+  },
+  {
+    "Id": "020e0d87-9f6a-426d-8c73-7e36e2f75542",
+    "Nombre": "Devil God Contest",
+    "Descripcion": "Evento juvenil de farmeo de aura masivo 67",
+    "Fecha": "2027-07-06T09:07:00Z",
+    "Lugar": "128, Rivadavia, Centro, Municipio de Calchaquí, Departamento Vera, Santa Fe, S3050, Argentina",
+    "Latitud": -29.88968,
+    "Longitud": -60.2821,
+    "Cancelado": true,
+    "Modalidades": [
+      {
+        "Id": "6dbcee79-97df-4f4f-9af6-b021580cf31d",
+        "Nombre": "Participante",
+        "Precio": 67.0,
+        "Beneficios": "Remera de Tung Tung Sahur haciendo el 67",
+        "CupoMaximo": 670,
+        "CupoDisponible": 670,
+        "Cancelada": false
+      },
+      {
+        "Id": "7b52b9b0-4209-4a06-b6bc-43816c52ac84",
+        "Nombre": "Observador",
+        "Precio": 6700.0,
+        "Beneficios": "Sentir el aura",
+        "CupoMaximo": 1000,
+        "CupoDisponible": 1000,
+        "Cancelada": false
+      }
+    ]
+  },
+  {
+    "Id": "d6f248fc-5e82-4d85-93b3-7f785faaca5a",
+    "Nombre": "Test",
+    "Descripcion": "sdfaef",
+    "Fecha": "2026-09-29T22:12:00Z",
+    "Lugar": "1388, Lavalle, Microcentro, San Nicolás, Buenos Aires, Comuna 1, Ciudad Autónoma de Buenos Aires, C1055AAO, Argentina",
+    "Latitud": -34.602826,
+    "Longitud": -58.386334,
+    "Cancelado": false,
+    "Modalidades": [
+      {
+        "Id": "c3fd5f89-d7d2-4bb2-9ad8-b060a5a1914d",
+        "Nombre": "test",
+        "Precio": 10000.0,
+        "Beneficios": "fasfweafawef",
+        "CupoMaximo": 10,
+        "CupoDisponible": 2,
+        "Cancelada": false
+      }
+    ]
   }
 ]
