@@ -208,10 +208,10 @@ A continuación se fundamentan las decisiones requeridas para la defensa oral y 
   - Mensaje explicativo: *"La entrada 'G4BXEZ' fue cancelada previamente por el comprador."*
 - Esto garantiza correspondencia semántica exacta entre el estado tipado y la justificación del rechazo.
 
-### 3. Validación con y sin Evento en Puerta
-- La API de Validación permite enviar opcionalmente el `idEvento`:
-  - **Con evento:** Representa un molinete o terminal asignada a un escenario o puerta específica de un evento en particular. Si la entrada es válida pero corresponde a otro evento, se rechaza como `EventoIncorrecto`.
-  - **Sin evento:** Representa una mesa de entrada central o terminal multipropósito (por ejemplo, boletería general de un predio donde se desarrollan varios eventos simultáneos), autorizando el acceso e informando inmediatamente a qué evento y modalidad corresponde la entrada escaneada.
+### 3. Validación por Evento en Puerta
+- La API de Validación exige enviar el `idEvento` del evento que se está controlando. Si falta o es `Guid.Empty`, rechaza la solicitud:
+  - El identificador del evento es obligatorio. Si la entrada es válida pero corresponde a otro evento, se rechaza como `EventoIncorrecto`.
+  - El frontend también exige seleccionar el evento que se está controlando antes de enviar el código.
 
 ### 4. Concurrencia y Persistencia Compartida en Archivos JSON
 - Ambas APIs comparten el acceso a `data/compras.json` y `data/eventos.json`.
@@ -246,7 +246,7 @@ A continuación se fundamentan las decisiones requeridas para la defensa oral y 
 
 ## 🧪 Pruebas Unitarias Automatizadas (NUnit)
 
-### Solución `ApiGestion/Solucion.sln` — 18 Tests Superados:
+### Solución `ApiGestion/Solucion.sln` — 18 tests definidos:
 1. `DescuentoPorVolumen_CompraDeCincoOMasEntradas_AplicaDescuentoDel15PorCiento`
 2. `RealizarCompra_SinCupoDisponible_LanzaExcepcion`
 3. `RealizarCompra_EventoCancelado_LanzaExcepcion`
@@ -266,7 +266,7 @@ A continuación se fundamentan las decisiones requeridas para la defensa oral y 
 17. `RealizarCompra_UnicidadDeCodigosEntreComprasDistintas_TodosLosCodigosSonUnicos` *(Borde Sección 5)*
 18. `ReporteRecaudacion_DespuesDeCancelarEntrada_DescuentaMontoDeLaEntradaCancelada` *(Borde Sección 5 y corrección G16)*
 
-### Solución `ApiValidacion/Solucion.sln` — 7 Tests Superados:
+### Solución `ApiValidacion/Solucion.sln` — 8 tests definidos:
 1. `ValidarEntrada_EntradaValida_AutorizaIngresoYMarcaComoUsada`
 2. `ValidarEntrada_EntradaYaUsada_RechazaConEstadoYaFueUsada`
 3. `ValidarEntrada_EntradaInexistente_RechazaConEstadoNoExiste`

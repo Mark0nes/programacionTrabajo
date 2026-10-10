@@ -19,15 +19,32 @@ public class EventosController : BaseApiController
     [HttpGet]
     public IActionResult ObtenerEventos()
     {
-        return Ok(_eventoService.ObtenerTodos());
+        var eventos = _eventoService.ObtenerDisponibles();
+        var eventoDtos = eventos.Select(evento => new EventoDto(
+            evento.Nombre,
+            evento.Descripcion,
+            evento.Fecha,
+            evento.Lugar,
+            evento.Latitud,
+            evento.Longitud
+        )).ToList();
+        return Ok(eventoDtos);
     }
 
     [HttpGet("{id:guid}")]
     public IActionResult ObtenerPorId(Guid id)
     {
         var evento = _eventoService.ObtenerPorId(id);
+        var eventoDto = evento != null ? new EventoDto(
+            evento.Nombre,
+            evento.Descripcion,
+            evento.Fecha,
+            evento.Lugar,
+            evento.Latitud,
+            evento.Longitud
+        ) : null;
         return evento != null
-            ? Ok(evento)
+            ? Ok(eventoDto)
             : NotFound(new { mensaje = $"Evento con ID '{id}' no encontrado." });
     }
 
@@ -40,7 +57,15 @@ public class EventosController : BaseApiController
             _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
 
             var nuevoEvento = _eventoService.Crear(dto.Nombre, dto.Descripcion, dto.Fecha, dto.Lugar, dto.Latitud, dto.Longitud);
-            return Created($"/api/eventos/{nuevoEvento.Id}", nuevoEvento);
+            var eventoDto = new EventoDto(
+                nuevoEvento.Nombre,
+                nuevoEvento.Descripcion,
+                nuevoEvento.Fecha,
+                nuevoEvento.Lugar,
+                nuevoEvento.Latitud,
+                nuevoEvento.Longitud
+            );
+            return Created($"/api/eventos/{nuevoEvento.Id}", eventoDto);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -61,7 +86,15 @@ public class EventosController : BaseApiController
             _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
 
             var eventoModificado = _eventoService.Modificar(id, dto.Nombre, dto.Descripcion, dto.Fecha, dto.Lugar, dto.Latitud, dto.Longitud);
-            return Ok(eventoModificado);
+            var eventoDto = new EventoDto(
+                eventoModificado.Nombre,
+                eventoModificado.Descripcion,
+                eventoModificado.Fecha,
+                eventoModificado.Lugar,
+                eventoModificado.Latitud,
+                eventoModificado.Longitud
+            );
+            return Ok(eventoDto);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -86,7 +119,15 @@ public class EventosController : BaseApiController
             _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
 
             var eventoCancelado = _eventoService.Cancelar(id);
-            return Ok(new { mensaje = "Evento cancelado exitosamente.", evento = eventoCancelado });
+            var eventoDto = new EventoDto(
+                eventoCancelado.Nombre,
+                eventoCancelado.Descripcion,
+                eventoCancelado.Fecha,
+                eventoCancelado.Lugar,
+                eventoCancelado.Latitud,
+                eventoCancelado.Longitud
+            );
+            return Ok(new { mensaje = "Evento cancelado exitosamente.", evento = eventoDto });
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -107,7 +148,13 @@ public class EventosController : BaseApiController
             _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
 
             var modalidad = _eventoService.AgregarModalidad(id, dto.Nombre, dto.Precio, dto.Beneficios, dto.CupoMaximo);
-            return Created($"/api/eventos/{id}/modalidades/{modalidad.Id}", modalidad);
+            var modalidadDto = new ModalidadDto(
+                modalidad.Nombre,
+                modalidad.Precio,
+                modalidad.Beneficios,
+                modalidad.CupoMaximo
+            );
+            return Created($"/api/eventos/{id}/modalidades/{modalidad.Id}", modalidadDto);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -132,7 +179,13 @@ public class EventosController : BaseApiController
             _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
 
             var modalidadCancelada = _eventoService.CancelarModalidad(idEvento, idModalidad);
-            return Ok(new { mensaje = "Modalidad cancelada exitosamente.", modalidad = modalidadCancelada });
+            var modalidadDto = new ModalidadDto(
+                modalidadCancelada.Nombre,
+                modalidadCancelada.Precio,
+                modalidadCancelada.Beneficios,
+                modalidadCancelada.CupoMaximo
+            );
+            return Ok(new { mensaje = "Modalidad cancelada exitosamente.", modalidad = modalidadDto });
         }
         catch (UnauthorizedAccessException ex)
         {

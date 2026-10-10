@@ -40,21 +40,21 @@ public class Usuario
     [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftDniConverter))]
     [JsonProperty("dni")]
     [JsonPropertyName("dni")]
-    public string Dni { get; set; } = string.Empty;
+    public string Dni { get; private set; } = string.Empty;
 
     [JsonProperty("nombre")]
     [JsonPropertyName("nombre")]
-    public string Nombre { get; set; } = string.Empty;
+    public string Nombre { get; private set; } = string.Empty;
 
     [JsonProperty("username")]
     [JsonPropertyName("username")]
-    public string Username { get; set; } = string.Empty;
+    public string Username { get; private set; } = string.Empty;
 
     [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
     [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter))]
     [JsonProperty("rol")]
     [JsonPropertyName("rol")]
-    public RolUsuario Rol { get; set; }
+    public RolUsuario Rol { get; private set; }
 
     public Usuario()
     {

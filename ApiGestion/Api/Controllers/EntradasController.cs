@@ -1,4 +1,5 @@
 using GestionEventos.Logica;
+using GestionEventos.Api.DTOs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionEventos.Api.Controllers;
@@ -24,7 +25,14 @@ public class EntradasController : BaseApiController
             _usuarioService.ValidarRol(dni, RolUsuario.Comprador);
 
             var entradaCancelada = _compraService.CancelarEntrada(codigo, dni!);
-            return Ok(new { mensaje = "Entrada cancelada con éxito. El cupo ha sido restablecido.", entrada = entradaCancelada });
+            var entradaDto = new EntradaCanceladaDto(
+                entradaCancelada.Codigo,
+                entradaCancelada.IdEvento,
+                entradaCancelada.IdModalidad,
+                entradaCancelada.IdCompra,
+                entradaCancelada.Cancelada
+            );
+            return Ok(new { mensaje = "Entrada cancelada con éxito. El cupo ha sido restablecido.", entrada = entradaDto });
         }
         catch (UnauthorizedAccessException ex)
         {

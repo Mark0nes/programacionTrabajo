@@ -1,4 +1,5 @@
 using GestionEventos.Logica;
+using GestionEventos.Api.DTOs;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionEventos.Api.Controllers;
@@ -16,6 +17,12 @@ public class UsuariosController : BaseApiController
     [HttpGet]
     public IActionResult ObtenerTodos()
     {
-        return Ok(_usuarioService.ObtenerTodos());
+        var usuarios = _usuarioService.ObtenerTodos();
+        var usuarioDtos = usuarios.Select(usuario => new UsuarioDto(
+            usuario.Dni,
+            usuario.Nombre,
+            usuario.Username,
+            usuario.Rol)).ToList();
+        return Ok(usuarioDtos);
     }
 }

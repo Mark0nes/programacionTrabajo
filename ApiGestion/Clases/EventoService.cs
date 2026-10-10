@@ -66,12 +66,7 @@ public class EventoService
             throw new ArgumentException("La fecha del evento no puede ser anterior a la fecha y hora actual.");
         }
 
-        evento.Nombre = nombre.Trim();
-        evento.Descripcion = descripcion?.Trim() ?? string.Empty;
-        evento.Fecha = fecha;
-        evento.Lugar = lugar.Trim();
-        evento.Latitud = latitud;
-        evento.Longitud = longitud;
+        evento.Actualizar(nombre, descripcion, fecha, lugar, latitud, longitud);
 
         _eventoRepository.GuardarEventos(eventos);
         return evento;

@@ -264,10 +264,6 @@ public class GestionEventosTests
         Assert.That(evRecuperado.Cancelado, Is.True);
     }
 
-    // =========================================================================
-    // Casos de borde solicitados por la corrección del profesor (Sección 5)
-    // =========================================================================
-
     [Test]
     public void RealizarCompra_DniInexistente_LanzaAccesoDenegadoException()
     {
@@ -305,11 +301,11 @@ public class GestionEventosTests
         var evento = _eventoService.Crear("Recital Acústico", "Desc", DateTime.Now.AddDays(20), "Teatro");
         var mod = _eventoService.AgregarModalidad(evento.Id, "Platea", 1500m, "Fila A", 20);
 
-        // Sofía Gómez (40123456) compra una entrada
+        // Sofía Gómez (40123456)
         var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 1);
         var entrada = compra.Entradas[0];
 
-        // Nicolás Pereyra (38456789) intenta cancelar la entrada de Sofía
+        // Nicolás Pereyra (38456789) 
         var ex = Assert.Catch<UnauthorizedAccessException>(() =>
         {
             _compraService.CancelarEntrada(entrada.Codigo, "38456789");
@@ -327,7 +323,7 @@ public class GestionEventosTests
 
         var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 4);
 
-        // 4 entradas a $1000 = $4000 (el descuento del 15% sólo aplica a partir de 5 entradas)
+        // 4 entradas a $1000 = $4000
         Assert.That(compra.Total, Is.EqualTo(4000m));
         Assert.That(compra.Entradas.Count, Is.EqualTo(4));
         Assert.That(compra.PrecioUnitario, Is.EqualTo(1000m));
@@ -361,18 +357,16 @@ public class GestionEventosTests
         var evento = _eventoService.Crear("Concierto Sinfónico", "Desc", DateTime.Now.AddDays(15), "Auditorio");
         var mod = _eventoService.AgregarModalidad(evento.Id, "Platea", 1000m, "Fila 1", 20);
 
-        // Compra 5 entradas a $1000 con 15% de descuento = $4250 total ($850 cada una)
+        // 5 entradas a $1000 con 15% de descuento = $4250 total ($850 cada una)
         var compra = _compraService.RealizarCompra("40123456", evento.Id, mod.Id, 5);
         var entradaACancelar = compra.Entradas[0];
 
-        // Se cancela 1 entrada
         _compraService.CancelarEntrada(entradaACancelar.Codigo, "40123456");
 
         var reporte = _eventoService.ObtenerReporteRecaudacion();
         var repEvento = reporte.Eventos.First(e => e.IdEvento == evento.Id);
 
-        // Quedan 4 entradas vendidas activas.
-        // Recaudación esperada: 4 * $850 = $3400 (se deduce la entrada cancelada del reporte, solucionando la inconsistencia G16)
+        // Recaudación esperada: 4 * $850 = $3400 
         Assert.That(repEvento.EntradasVendidas, Is.EqualTo(4));
         Assert.That(repEvento.RecaudacionTotal, Is.EqualTo(3400m));
         Assert.That(reporte.TotalGeneralEntradasVendidas, Is.EqualTo(4));

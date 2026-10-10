@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using ValidacionEventos.Logica;
+using ValidacionEventos.Data;
 
 namespace Testing;
 
@@ -115,7 +116,9 @@ public class ValidacionEntradasTests
         };
         File.WriteAllText(_comprasFile, compras.ToString(Formatting.Indented));
 
-        _validador = new ValidadorEntradaService(_comprasFile, _eventosFile);
+        _validador = new ValidadorEntradaService(
+            new ValidacionCompraRepository(_comprasFile),
+            new ValidacionEventoRepository(_eventosFile));
     }
 
     [TearDown]
@@ -129,6 +132,16 @@ public class ValidacionEntradasTests
             }
             catch { }
         }
+    }
+
+    [Test]
+    public void ValidarEntrada_SinEvento_RechazaLaValidacion()
+    {
+        var resultado = _validador.ValidarEntrada(CodigoValido, Guid.Empty);
+
+        Assert.That(resultado.Exitoso, Is.False);
+        Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.EventoIncorrecto));
+        Assert.That(resultado.Mensaje, Does.Contain("evento"));
     }
 
     [Test]

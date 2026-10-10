@@ -5,22 +5,22 @@ using ValidacionEventos.Dominio;
 
 public class ValidadorEntradaService
 {
-    private readonly ValidacionCompraRepository _compraRepository;
-    private readonly ValidacionEventoRepository _eventoRepository;
+    private readonly IValidacionCompraRepository _compraRepository;
+    private readonly IValidacionEventoRepository _eventoRepository;
 
-    public ValidadorEntradaService(ValidacionCompraRepository compraRepository, ValidacionEventoRepository eventoRepository)
+    public ValidadorEntradaService(IValidacionCompraRepository compraRepository, IValidacionEventoRepository eventoRepository)
     {
         _compraRepository = compraRepository ?? throw new ArgumentNullException(nameof(compraRepository));
         _eventoRepository = eventoRepository ?? throw new ArgumentNullException(nameof(eventoRepository));
     }
 
-    public ValidadorEntradaService(string? rutaCompras = null, string? rutaEventos = null)
-        : this(new ValidacionCompraRepository(rutaCompras), new ValidacionEventoRepository(rutaEventos))
+    public ResultadoValidacion ValidarEntrada(string codigo, Guid idEvento)
     {
-    }
-
-    public ResultadoValidacion ValidarEntrada(string codigo, Guid? idEvento = null)
-    {
+        if (idEvento == Guid.Empty)
+        {
+            return new ResultadoValidacion(false, EstadoValidacion.EventoIncorrecto, "Debe especificarse un evento válido para realizar la validación.");
+        }
+        
         if (string.IsNullOrWhiteSpace(codigo))
         {
             return new ResultadoValidacion(false, EstadoValidacion.NoExiste, "El código no puede estar vacío.");
@@ -62,7 +62,7 @@ public class ValidadorEntradaService
             return new ResultadoValidacion(false, EstadoValidacion.Cancelada, $"La entrada '{codigoBuscado}' fue cancelada previamente por el comprador.", codigoBuscado, nombreEvento, nombreModalidad);
         }
 
-        if (idEvento.HasValue && idEvento.Value != Guid.Empty && idEvento.Value != entradaEncontrada.IdEvento)
+        if (idEvento != entradaEncontrada.IdEvento)
         {
             return new ResultadoValidacion(false, EstadoValidacion.EventoIncorrecto, $"La entrada no corresponde a este evento (es para '{nombreEvento}').", codigoBuscado, nombreEvento, nombreModalidad);
         }

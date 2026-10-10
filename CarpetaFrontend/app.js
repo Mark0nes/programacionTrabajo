@@ -636,7 +636,9 @@ async function buscarCompra(compraIdManual = null) {
   }
 
   try {
-    const res = await fetch(`${API_GESTION}/compras/${id}`);
+    const res = await fetch(`${API_GESTION}/compras/${id}`, {
+      headers: { "X-Dni": state.usuarioActivo?.dni || "" }
+    });
     if (!res.ok) {
       if (res.status === 404) throw new Error("Compra no encontrada.");
       throw new Error("Error al consultar la compra.");
@@ -817,6 +819,12 @@ async function validarEntradaEnPuerta() {
   const codigo = input.value.trim().toUpperCase();
   const selectEvento = document.getElementById("puertaEventoSelect");
   const idEvento = selectEvento.value || null;
+
+  if (!idEvento) {
+    alert("Seleccione el evento que está controlando antes de validar una entrada.");
+    selectEvento.focus();
+    return;
+  }
 
   if (!codigo) {
     alert("Por favor ingrese el codigo de 6 caracteres de la entrada.");

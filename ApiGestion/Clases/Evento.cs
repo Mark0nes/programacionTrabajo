@@ -10,12 +10,12 @@ public class Evento
     [JsonInclude]
     public Guid Id { get; private set; } = Guid.NewGuid();
 
-    public string Nombre { get; set; } = string.Empty;
-    public string Descripcion { get; set; } = string.Empty;
-    public DateTime Fecha { get; set; }
-    public string Lugar { get; set; } = string.Empty;
-    public double? Latitud { get; set; }
-    public double? Longitud { get; set; }
+    public string Nombre { get; private set; } = string.Empty;
+    public string Descripcion { get; private set; } = string.Empty;
+    public DateTime Fecha { get; private set; }
+    public string Lugar { get; private set; } = string.Empty;
+    public double? Latitud { get; private set; }
+    public double? Longitud { get; private set; }
 
     [JsonProperty]
     [JsonInclude]
@@ -91,5 +91,32 @@ public class Evento
     public bool EstaDisponible()
     {
         return !Cancelado && Fecha >= DateTime.Now;
+    }
+
+    public Evento Actualizar(string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            throw new ArgumentException("El nombre del evento no puede estar vacío.");
+        }
+
+        if (string.IsNullOrWhiteSpace(lugar))
+        {
+            throw new ArgumentException("El lugar del evento no puede estar vacío.");
+        }
+
+        if (fecha < DateTime.Now)
+        {
+            throw new ArgumentException("La fecha del evento no puede ser anterior a la fecha y hora actual.");
+        }
+
+        Nombre = nombre.Trim();
+        Descripcion = descripcion?.Trim() ?? string.Empty;
+        Fecha = fecha;
+        Lugar = lugar.Trim();
+        Latitud = latitud;
+        Longitud = longitud;
+
+        return this;
     }
 }

@@ -43,11 +43,11 @@ public class Compra
 
     [JsonProperty]
     [JsonInclude]
-    public decimal Total { get; set; }
+    public decimal Total { get; private set; }
 
     [JsonProperty]
     [JsonInclude]
-    public List<Entrada> Entradas { get; set; } = new List<Entrada>();
+    public List<Entrada> Entradas { get; private set; } = new List<Entrada>();
 
     public Compra()
     {

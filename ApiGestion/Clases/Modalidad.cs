@@ -10,13 +10,13 @@ public class Modalidad
     [JsonInclude]
     public Guid Id { get; private set; } = Guid.NewGuid();
 
-    public string Nombre { get; set; } = string.Empty;
+    public string Nombre { get; private set; } = string.Empty;
 
     [JsonProperty]
     [JsonInclude]
     public decimal Precio { get; private set; }
 
-    public string Beneficios { get; set; } = string.Empty;
+    public string Beneficios { get; private set; } = string.Empty;
 
     [JsonProperty]
     [JsonInclude]

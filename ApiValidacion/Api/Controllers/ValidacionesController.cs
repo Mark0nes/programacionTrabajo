@@ -23,6 +23,12 @@ public class ValidacionesController : ControllerBase
             return BadRequest(new ResultadoValidacion(false, EstadoValidacion.NoExiste, "El código no puede estar vacío."));
         }
 
+        if (dto.IdEvento == Guid.Empty)
+        {
+            return BadRequest(new ResultadoValidacion(false, EstadoValidacion.EventoIncorrecto,
+                "Debe indicar el evento que se está controlando."));
+        }
+
         var resultado = _validador.ValidarEntrada(dto.Codigo, dto.IdEvento);
 
         if (resultado.Exitoso)
