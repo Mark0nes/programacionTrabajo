@@ -1,276 +1,143 @@
 # TP Integrador — Sistema de Venta y Validación de Entradas para Eventos
 
-**Materia:** Programación 1 — UCSE  
-**Integrantes:** Uriel Callebaut, Faustino Trivelli, Marcos Weppler  
-**Tecnologías:** C# / .NET 8 (con compatibilidad de roll-forward de runtime), ASP.NET Core Web API, NUnit (25 pruebas unitarias en verde), Persistencia JSON compartida en disco, HTML5, CSS3, JavaScript nativo (Vanilla JS SPA con Hash Routing), Leaflet con mosaicos CARTO Voyager y OpenStreetMap Nominatim.
+**Materia:** Programación 1 — UCSE
+**Equipo:** Escultores — Uriel Callebaut, Faustino Trivelli, Marcos Weppler
+**Video de la demo:** _(pegar acá el enlace; el video NO se sube al repositorio)_
 
----
+Dos APIs REST (ASP.NET Core, .NET 8) que **comparten los mismos archivos JSON** (sin base de datos) y un frontend en HTML/CSS/JavaScript sin frameworks.
 
-## 📌 Descripción General
+| Componente | Carpeta | Puerto | Para qué sirve |
+|---|---|---|---|
+| API de Gestión | `ApiGestion/` | **5001** | Eventos, modalidades, compras, entradas, reporte. Swagger en `/swagger`. |
+| API de Validación | `ApiValidacion/` | **5002** | Validar entradas en la puerta el día del evento. |
+| Frontend | `CarpetaFrontend/` | — | Pantallas para organizador, comprador y control de acceso. |
+| Datos compartidos | `data/` | — | `usuarios.json`, `eventos.json`, `compras.json`. |
 
-El sistema reemplaza la gestión tradicional de venta de entradas con planillas de cálculo y mensajería manual por una solución integral compuesta por **dos APIs REST independientes que comparten la misma información persistida en disco (sin base de datos central)** y una **aplicación web frontend**:
+Los puertos salen de `Api/Properties/launchSettings.json` de cada API y coinciden con las constantes `API_GESTION` / `API_VALIDACION` de `CarpetaFrontend/app.js`.
 
-1. **API de Gestión (`ApiGestion` - Puerto 5001):**
-   - Catálogo y administración de eventos y sus modalidades de entrada.
-   - Venta de entradas asociadas al DNI del comprador, con cálculo automático de **descuento por volumen del 15% para compras de 5 o más entradas** de la misma modalidad.
-   - Generación de **entradas individuales con códigos únicos alfanuméricos de 6 dígitos** (garantía de no repetición y unicidad global).
-   - Reportes de recaudación y entradas vendidas por evento con desglose por modalidad y listado de compradores, deduciendo de forma consistente cualquier entrada cancelada.
-   - Endpoint de promoción: **Cancelación de entradas individuales** (`DELETE /api/entradas/{codigo}`) restaurando el cupo de la modalidad.
-   - Cancelación de modalidades y eventos completos por organizadores.
-   - Control de permisos mediante roles (**Organizador** vs. **Comprador**) y excepciones propias de dominio.
-   - Documentación interactiva con **Swagger UI**.
+## Cómo levantarlo
 
-2. **API de Validación en Puerta (`ApiValidacion` - Puerto 5002):**
-   - Utilizada en el acceso el día del evento.
-   - Implementada bajo el **patrón Repositorio y Servicio (Unidad 5)** con entidades de dominio fuertemente tipadas (`Entrada`, `Compra`, `Evento`).
-   - Recibe el código de una entrada y valida si puede ingresar, registrando inmediatamente su uso (`Usada = true`, fecha y hora) o rechazándola con causa y estado tipado explícito:
-     - `Valida`: ingreso autorizado.
-     - `YaFueUsada`: entrada utilizada previamente con detalle de fecha y hora.
-     - `Cancelada`: entrada cancelada previamente por el comprador.
-     - `NoExiste`: código no registrado en el sistema.
-     - `EventoIncorrecto`: la entrada corresponde a otro evento.
-     - `EventoCancelado`: el evento asociado ha sido suspendido/cancelado.
-   - Sincronización inmediata contra los mismos archivos en disco.
+Requisitos: .NET 8 SDK y un navegador moderno.
 
-3. **Frontend Web (`CarpetaFrontend`):**
-   - Aplicación responsiva construida con HTML5, CSS3 (paleta Slate moderna sin excesos visuales) y JavaScript nativo.
-   - **Arquitectura SPA con Hash Routing (`#...`):** URLs independientes por vista (`#catalogo`, `#evento={id}`, `#consulta-compra`, `#control-acceso`, `#gestion-eventos`, `#reporte-recaudacion`) con soporte de historial del navegador (`Atrás`/`Adelante`) y *deep linking*.
-   - Selector dinámico de usuario activo basado en DNI y validación de roles.
-   - Restricción de seguridad en cliente: **la vista de Control de Acceso (Puerta) está reservada exclusivamente a organizadores**.
-   - Aislamiento de privacidad: los compradores sólo visualizan sus propias entradas y compras adquiridas (`GET /api/compras?dni=...`).
-   - Mapa interactivo con **Leaflet + CARTO Voyager**, compatible con redes universitarias e institucionales (sin bloqueos de CORS/403).
+```bash
+# 1) Tests (una vez por solución, desde la raíz del repo)
+dotnet test ApiGestion/Solucion.sln
+dotnet test ApiValidacion/Solucion.sln
 
----
+# 2) API de Gestión (terminal 1)
+cd ApiGestion/Api
+dotnet run            # http://localhost:5001/swagger
 
-## 📂 Estructura del Repositorio
+# 3) API de Validación (terminal 2)
+cd ApiValidacion/Api
+dotnet run            # http://localhost:5002/swagger
+
+# 4) Frontend: abrir CarpetaFrontend/index.html (o servirlo con Live Server)
+```
+
+**Desde qué carpeta se lanzan:** las rutas son relativas y se resuelven con `DataPathHelper`, que sube por los directorios padres hasta encontrar la carpeta `data/` de la raíz del repo. Por eso funciona lanzando desde la raíz, desde `ApiGestion/` o desde `ApiGestion/Api/`. Si no la encuentra, **falla con un mensaje claro** en vez de crear otra carpeta en silencio (si cada API usara su propia carpeta `data`, dejarían de compartir datos).
+
+## Estructura
 
 ```text
-├── ApiGestion/                 # Solución 1: API de Gestión y Ventas
-│   ├── Api/                    # Web API ASP.NET Core (.NET 8, Swagger en :5001)
-│   │   ├── Controllers/        # Controladores REST (Eventos, Compras, Entradas, Usuarios, Reportes)
-│   │   ├── DTOs/               # DTOs de transferencia para API (Unidad 6)
-│   │   ├── Api.http            # Solicitudes HTTP de prueba para VS / VS Code
-│   │   └── Program.cs          # Inyección de dependencias y middlewares
-│   ├── Clases/                 # Capa de Dominio y Datos (Unidad 5)
-│   │   ├── Dominio/            # Entidades encapsuladas (Evento, Modalidad, Compra, Entrada, Usuario)
-│   │   ├── Excepciones/        # Excepciones propias del dominio (AccesoDenegado, ReglaNegocio, etc.)
-│   │   ├── Data/               # Repositorios JSON y DataPathHelper robusto
-│   │   └── Servicios/          # Lógica de negocio (EventoService, CompraService, UsuarioService)
-│   ├── Testing/                # Pruebas unitarias NUnit de ApiGestion (18 tests en verde)
-│   └── Solucion.sln            # Solución Visual Studio de Gestión
-│
-├── ApiValidacion/              # Solución 2: API de Validación en Puerta
-│   ├── Api/                    # Web API ASP.NET Core (.NET 8, Swagger en :5002)
-│   │   ├── Controllers/        # Controlador de validación en puerta
-│   │   ├── Api.http            # Solicitudes HTTP de validación
-│   │   └── Program.cs          # Configuración DI con repositorios tipados
-│   ├── Clases/                 # Capa de Lógica y Persistencia Tipada (Unidad 5)
-│   │   ├── Dominio/            # Entidades tipadas (Entrada, Compra, Evento)
-│   │   ├── Data/               # ValidacionCompraRepository, ValidacionEventoRepository y DataPathHelper
-│   │   ├── EstadoValidacion.cs # Enum de estados (incluye Cancelada, YaFueUsada, Valida, etc.)
-│   │   └── ValidadorEntradaService.cs # Servicio de validación atómica
-│   ├── Testing/                # Pruebas unitarias NUnit de ApiValidacion (7 tests en verde)
-│   └── Solucion.sln            # Solución Visual Studio de Validación
-│
-├── CarpetaFrontend/            # Frontend Web (Vanilla HTML/CSS/JS SPA)
-│   ├── index.html              # Estructura de vistas del sistema
-│   ├── styles.css              # Diseño Slate minimalista, accesible y responsivo
-│   └── app.js                  # Lógica de cliente, consumo de APIs y Leaflet con CARTO Voyager
-│
-├── data/                       # Almacenamiento compartido en disco (rutas relativas)
-│   ├── usuarios.json           # 10 usuarios del anexo (2 Organizadores, 8 Compradores)
-│   ├── eventos.json            # Eventos, coordenadas y modalidades
-│   └── compras.json            # Compras y entradas individuales generadas
-│
-└── README.md                   # Documentación técnica completa
+├── ApiGestion/
+│   ├── Api/        Controllers/, DTOs/ (Request, Response y GestionMapper), Program.cs
+│   ├── Clases/     Entidades, servicios (EventoService, CompraService, UsuarioService),
+│   │               Excepciones/, Data/ (repositorios JSON y DataPathHelper)
+│   └── Testing/    Tests NUnit de la lógica de Gestión
+├── ApiValidacion/
+│   ├── Api/        Controllers/ValidacionesController, DTOs/, Program.cs
+│   ├── Clases/     Dominio/ (Compra, Entrada, Evento), Data/ (repositorios), ValidadorEntradaService
+│   └── Testing/    Tests NUnit de la lógica de Validación
+├── CarpetaFrontend/  index.html, páginas por pantalla, app.js, styles.css
+└── data/             usuarios.json, eventos.json, compras.json
 ```
 
----
+Dependencias: `Api → Clases` y `Testing → Clases`. Los controllers y los DTOs viven en `Api`; `Clases` es una biblioteca de clases común en las dos soluciones (no es un proyecto Web) y no conoce HTTP.
 
-## 🚀 Cómo Ejecutar el Proyecto
+## Identificación del usuario y roles
 
-### Requisitos Previos
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) instalado (compatible también con .NET 9 y 10 vía roll-forward).
-- Navegador web moderno (Chrome, Edge, Firefox).
+No hay login. Quien opera se indica con el **DNI en el header `X-Dni`** (alternativa para pruebas desde el navegador: `?dni=`). Es el **único criterio en todos los endpoints**; ningún endpoint lo toma del body. El servicio busca el DNI en `usuarios.json` y compara el rol; si falta, no existe o el rol no corresponde → **403** con el motivo en el body. El frontend, además, oculta las acciones que el rol no puede hacer.
 
----
+## Endpoints
 
-### Paso 1: Ejecutar las Pruebas Unitarias (NUnit)
-
-Para verificar que toda la lógica de negocio, las reglas de promoción y los casos de borde están superados (25/25 en verde):
-
-```bash
-# Tests de ApiGestion (18 pruebas unitarias: descuento, roles, unicidad, cupos, cancelación y reporte)
-dotnet test ApiGestion/Solucion.sln
-
-# Tests de ApiValidacion (7 pruebas unitarias: válida, usada, cancelada, inexistente, otro evento, etc.)
-dotnet test ApiValidacion/Solucion.sln
-```
-
----
-
-### Paso 2: Iniciar las APIs
-
-Abra dos terminales en la raíz del proyecto:
-
-#### Terminal 1 — API de Gestión (Puerto por defecto: 5001):
-```bash
-cd ApiGestion/Api
-dotnet run
-```
-> **Swagger UI:** [http://localhost:5001/swagger](http://localhost:5001/swagger)
-
-#### Terminal 2 — API de Validación (Puerto por defecto: 5002):
-```bash
-cd ApiValidacion/Api
-dotnet run
-```
-> **Swagger UI:** [http://localhost:5002/swagger](http://localhost:5002/swagger)
-
-*Nota sobre puertos:* Si se ejecutan en puertos alternativos mediante el parámetro `--urls` (por ejemplo `http://localhost:5130` y `http://localhost:5131`), el frontend `CarpetaFrontend/app.js` permite ajustar las constantes `API_GESTION` y `API_VALIDACION` en sus primeras líneas.
-
----
-
-### Paso 3: Abrir el Frontend
-
-Abra directamente el archivo `CarpetaFrontend/index.html` en su navegador preferido (haciendo doble clic en el archivo o sirviéndolo con una extensión como Live Server).
-
----
-
-## 👥 Usuarios Precargados (`data/usuarios.json`)
-
-El sistema incluye los 10 usuarios requeridos en el anexo de la cátedra, identificados por su DNI (campo único `dni`):
-
-| DNI | Nombre | Rol | Acciones Permitidas |
-|---|---|---|---|
-| **30111222** | Lucía Fernández | **Organizador** | Crear/editar/cancelar eventos y modalidades, ver recaudación, puerta. |
-| **29888777** | Martín Aguirre | **Organizador** | Crear/editar/cancelar eventos y modalidades, ver recaudación, puerta. |
-| **40123456** | Sofía Gómez | **Comprador** | Comprar entradas, ver únicamente sus compras, cancelar entradas no usadas. |
-| **38456789** | Nicolás Pereyra | **Comprador** | Comprar entradas, ver únicamente sus compras, cancelar entradas no usadas. |
-| **41234567** | Valentina Ríos | **Comprador** | Comprar entradas, ver únicamente sus compras, cancelar entradas no usadas. |
-| **37654321** | Tomás Ibáñez | **Comprador** | Comprar entradas, ver únicamente sus compras, cancelar entradas no usadas. |
-| **42345678** | Camila Suárez | **Comprador** | Comprar entradas, ver únicamente sus compras, cancelar entradas no usadas. |
-| **39876543** | Agustín Molina | **Comprador** | Comprar entradas, ver únicamente sus compras, cancelar entradas no usadas. |
-| **43456789** | Julieta Torres | **Comprador** | Comprar entradas, ver únicamente sus compras, cancelar entradas no usadas. |
-| **36765432** | Bruno Acosta | **Comprador** | Comprar entradas, ver únicamente sus compras, cancelar entradas no usadas. |
-
----
-
-## 📋 Endpoints de las APIs REST
+Errores: siempre `{ "error": "motivo" }` (400 regla de negocio o formato, 403 acceso, 404 no existe).
 
 ### API de Gestión (`http://localhost:5001`)
 
-| Método | Endpoint | Rol Requerido | Descripción |
+| Método | Endpoint | Rol | Descripción |
 |---|---|---|---|
-| `GET` | `/api/usuarios` | — | Lista todos los usuarios con DNI unificado. |
-| `GET` | `/api/usuarios/{dni}` | — | Obtiene los datos del usuario correspondiente al DNI. |
-| `GET` | `/api/eventos` | — | Lista los eventos del sistema con sus modalidades asociadas. |
-| `GET` | `/api/eventos/{id}` | — | Detalle de un evento y sus modalidades. |
-| `POST` | `/api/eventos` | **Organizador** (`X-Dni`) | Crea un evento con fecha, lugar, descripción y geolocalización. |
-| `PUT` | `/api/eventos/{id}` | **Organizador** (`X-Dni`) | Edita los datos de un evento no cancelado. |
-| `PUT` | `/api/eventos/{id}/cancelar` | **Organizador** (`X-Dni`) | Cancela un evento completo (bloquea ventas de todas sus modalidades). |
-| `POST` | `/api/eventos/{id}/modalidades` | **Organizador** (`X-Dni`) | Agrega una modalidad de entrada con precio, cupo y beneficios. |
-| `PUT` | `/api/eventos/{id}/modalidades/{idModalidad}/cancelar` | **Organizador** (`X-Dni`) | Cancela una modalidad específica (bloquea ventas para dicha modalidad). |
-| `POST` | `/api/compras` | **Comprador** (`X-Dni` o body) | Registra la compra, descuenta cupo y genera entradas individuales. |
-| `GET` | `/api/compras/{id}` | — | Detalle de una compra específica. |
-| `GET` | `/api/compras?dni={dni}` | — | Lista las compras pertenecientes a un DNI específico. |
-| `GET` | `/api/compras` *(sin DNI)* | **Organizador** (`X-Dni`) | Devuelve el total de compras del sistema (protegido con 403 Forbidden). |
-| `DELETE` | `/api/entradas/{codigo}` | **Comprador** (`X-Dni`) | *(Promoción)* Cancela una entrada no usada de su propiedad y restituye el cupo. |
-| `GET` | `/api/reportes/recaudacion` | **Organizador** (`X-Dni`) | Reporte de recaudación y entradas vendidas deduciendo entradas canceladas. |
+| GET | `/api/usuarios` | — | Usuarios precargados (un solo campo `dni`). |
+| GET | `/api/eventos` | — | Catálogo: solo eventos **disponibles** (no cancelados y futuros). Con `?incluirNoDisponibles=true` también cancelados y pasados. |
+| GET | `/api/eventos/{id}` | — | Detalle con modalidades (existe para cualquier evento). |
+| POST | `/api/eventos` | Organizador | Crea un evento (201). |
+| PUT | `/api/eventos/{id}` | Organizador | Edita un evento no cancelado. |
+| PUT | `/api/eventos/{id}/cancelar` | Organizador | Cancela el evento. |
+| POST | `/api/eventos/{id}/modalidades` | Organizador | Agrega una modalidad (201). |
+| PUT | `/api/eventos/{id}/modalidades/{idModalidad}/cancelar` | Organizador | Cancela una modalidad. |
+| POST | `/api/compras` | Comprador | Compra y genera las entradas individuales (201). El body lleva `idEvento`, `idModalidad`, `cantidad`. |
+| GET | `/api/compras/{id}` | Comprador dueño u Organizador | Detalle y estado de cada entrada. |
+| GET | `/api/compras` | Cualquier usuario cargado | Compras de quien opera; el organizador recibe todas. |
+| DELETE | `/api/entradas/{codigo}` | Comprador dueño | (Promoción) Cancela una entrada no usada y devuelve el cupo. |
+| GET | `/api/reportes/recaudacion` | Organizador | Entradas vendidas y dinero por evento, modalidad y comprador. |
 
 ### API de Validación (`http://localhost:5002`)
 
-| Método | Endpoint | Descripción |
+`POST /api/validaciones` con `{ "codigo": "ABC123", "idEvento": "<guid>" }`. **El evento es obligatorio.**
+
+| Resultado | HTTP | `estado` |
 |---|---|---|
-| `POST` | `/api/validaciones` | Valida el código de entrada. Soporta validación general (`{ "codigo": "..." }`) o para terminal asignada a evento (`{ "codigo": "...", "idEvento": "..." }`). Marca como usada o rechaza con estado (`Valida`, `YaFueUsada`, `Cancelada`, `NoExiste`, `EventoIncorrecto`, `EventoCancelado`). |
+| Ingreso autorizado (queda usada, con fecha y hora) | 200 | `Valida` |
+| El código no existe | 404 | `NoExiste` |
+| La entrada es de otro evento (o no se envió evento) | 400 | `EventoIncorrecto` |
+| La entrada fue cancelada por el comprador | 400 | `Cancelada` |
+| El evento fue cancelado | 400 | `EventoCancelado` |
+| La entrada ya ingresó | 400 | `YaFueUsada` |
+| Falta el código o el evento | 400 | `DatosInvalidos` |
 
----
+## Decisiones de diseño (para el coloquio)
 
-## 🧠 Decisiones de Diseño, Arquitectura y Análisis para el Coloquio
+**Dónde vive cada regla.** El descuento por volumen (5 o más entradas de la misma modalidad = 15%) lo calcula `Modalidad.CalcularPrecio`, junto al dato del precio, y se prueba sola. El cupo lo maneja `Modalidad.RegistrarVenta/RestaurarCupo`. Los permisos por rol y las reglas de compra están en los servicios, no en los controllers: el controller solo llama al servicio y traduce las excepciones del dominio a 400/403/404 (`BaseApiController.Ejecutar`).
 
-A continuación se fundamentan las decisiones requeridas para la defensa oral y la retención de la promoción:
+**Entrada individual.** Cada `Entrada` guarda su código, el evento y la modalidad a los que pertenece, si fue usada (con fecha), si fue cancelada y el **precio que realmente pagó**. Por eso se valida sola, sin la compra.
 
-### 1. Política de Cancelación de Entradas con Descuento por Volumen
-- **El caso:** Un comprador adquiere 5 entradas de \$1.000. Al comprar $\ge 5$, se aplica un 15% de descuento, abonando un total de \$4.250 (\$850 por entrada). Posteriormente, el comprador cancela 1 entrada.
-- **Decisión implementada:**
-  - Al realizarse la compra, cada entrada almacena de forma inmutable su precio unitario efectivo (`PrecioUnitario = 850`).
-  - Al cancelar 1 entrada, se restaura 1 lugar de cupo a la modalidad (`CupoDisponible++`) y la entrada queda marcada como `Cancelada = true`.
-  - La compra recalcula su total sumando exclusivamente las entradas activas: $4 \times 850 = \$3.400$.
-  - **Justificación:** La transacción inicial fue celebrada bajo las condiciones de venta mayorista vigentes al momento del pago. Aplicar un recargo retroactivo a las 4 entradas restantes por la cancelación de una de ellas implicaría cobrarle un adicional al comprador sin su consentimiento. Si un negocio quisiera penalizar esta situación, la regla comercial alternativa requeriría cancelar la compra completa y obligar a una recompra al precio estándar de 4 unidades sin descuento.
-- **Impacto en el Reporte de Recaudación:**
-  - El reporte de recaudación (`EventoService.ObtenerReporteRecaudacion`) suma estrictamente las entradas que no están canceladas (`!e.Cancelada`).
-  - Tras la cancelación, el reporte refleja exactamente **4 entradas vendidas** y **\$3.400 de recaudación**, eliminando cualquier inconsistencia entre cantidad y monto.
+**Códigos.** 6 caracteres `A-Z0-9` con `RandomNumberGenerator`; el servicio carga en un `HashSet` los códigos de **todas** las compras y el generador reintenta hasta encontrar uno libre, así que no se repiten entre compras ni dentro de la misma.
 
-### 2. Validación de Entradas Canceladas en Puerta
-- Cuando el operador de puerta intenta escanear una entrada cancelada (por ejemplo, `G4BXEZ`), la API de Validación responde:
-  - Código HTTP: `400 Bad Request`.
-  - Estado devuelto: `Cancelada` (dentro del enum `EstadoValidacion`).
-  - Mensaje explicativo: *"La entrada 'G4BXEZ' fue cancelada previamente por el comprador."*
-- Esto garantiza correspondencia semántica exacta entre el estado tipado y la justificación del rechazo.
+**Encapsulamiento.** El estado de negocio (`CupoDisponible`, `Usada`, `Cancelada`, `Total`) tiene `private set` y solo cambia por métodos que validan. Cada propiedad con `private set` lleva `[JsonProperty]`: sin ese atributo Newtonsoft no puede asignarla al leer el JSON y la entidad se reconstruye vacía (hay tests que lo verifican).
 
-### 3. Validación por Evento en Puerta
-- La API de Validación exige enviar el `idEvento` del evento que se está controlando. Si falta o es `Guid.Empty`, rechaza la solicitud:
-  - El identificador del evento es obligatorio. Si la entrada es válida pero corresponde a otro evento, se rechaza como `EventoIncorrecto`.
-  - El frontend también exige seleccionar el evento que se está controlando antes de enviar el código.
+**Excepciones propias.** `AccesoDenegadoException`, `ReglaNegocioException` (y su subtipo `CupoInsuficienteException`) y `EntidadNoEncontradaException`, todas derivadas de `DominioException`, que hereda de `Exception`. No se usan excepciones del framework con otro significado.
 
-### 4. Concurrencia y Persistencia Compartida en Archivos JSON
-- Ambas APIs comparten el acceso a `data/compras.json` y `data/eventos.json`.
-- En el código fuente, las operaciones de lectura y guardado están protegidas mediante un semáforo de bloqueo en memoria (`lock (Bloqueo)`).
-- **Riesgo entre procesos:** Dado que `ApiGestion` y `ApiValidacion` son dos procesos independientes en el sistema operativo, los bloqueos en memoria solo resuelven la concurrencia entre hilos de un mismo proceso. Si una compra en Gestión y una validación en Puerta se escriben en el mismo milisegundo exacto sobre el disco, existe un riesgo de colisión de archivos (*race condition*).
-- **Solución en entornos productivos:** En un sistema comercial, la concurrencia se delega a un motor de base de datos relacional (PostgreSQL, SQL Server) con transacciones ACID y aislamiento, o mediante un bloqueo exclusivo a nivel del sistema operativo (`FileStream` con `FileShare.None`).
+**Reloj inyectable.** Los servicios reciben `Func<DateTime>` (por defecto `DateTime.Now`) para que los tests no dependan de la hora real.
 
-### 5. Resolución Robusta de Rutas (`DataPathHelper`)
-- Para evitar que la carga de archivos dependa rígidamente del directorio de trabajo actual desde el que se lanza cada API, se implementó la clase `DataPathHelper`.
-- Esta utilidad inspecciona la jerarquía de carpetas hacia arriba (recorriendo los directorios padres tanto desde `Directory.GetCurrentDirectory()` como desde `AppContext.BaseDirectory`), localizando la carpeta `data/` de la raíz del proyecto tanto al ejecutar desde la raíz, desde la carpeta de la solución o desde la subcarpeta `Api/`.
+### Cancelar una entrada de una compra con descuento
+Se compran 5 entradas de $1.000 con descuento: total $4.250, **$850 cada una** (la última absorbe cualquier diferencia de redondeo, así la suma de las entradas es exactamente lo cobrado). Si se cancela una:
+- La entrada cancelada se reintegra por lo que pagó ($850) y vuelve su lugar al cupo.
+- Las otras 4 **conservan el precio que ya abonaron**: la compra se hizo bajo las condiciones vigentes al pagar; recalcularlas sin descuento le cobraría de más al comprador sin su consentimiento.
+- `Compra.Total` pasa a ser la suma de las entradas no canceladas: $3.400.
+- **Reporte de recaudación:** cuenta solo entradas no canceladas y suma su precio efectivo, de modo que cantidad y dinero bajan juntos (4 entradas, $3.400). La cantidad y el dinero del evento salen de la misma lista de compradores, por lo que no pueden discrepar.
+- Una entrada **ya validada en la puerta no se puede cancelar**, ni tampoco las de un evento que ya comenzó.
 
-### 6. Calidad POO, Encapsulamiento y Excepciones de Dominio
-- **Encapsulamiento estricto:** Todas las propiedades de estado crítico (`Usada`, `Cancelada`, `CupoDisponible`, `Total`) tienen setter privado (`private set`). La modificación de estado solo es posible a través de métodos de negocio con validaciones (`MarcarComoUsada()`, `CancelarEntrada()`, `RegistrarVenta()`, `RestaurarCupo()`, `RecalcularTotal()`).
-- **Compatibilidad con serialización:** Se incorporaron los atributos `[JsonProperty]` y `[JsonInclude]` para permitir la reconstrucción fiel de entidades tanto en Newtonsoft.Json como en System.Text.Json sin abrir setters públicos.
-- **Excepciones de Dominio:** Se definieron excepciones propias:
-  - `AccesoDenegadoException`: lanzada ante violaciones de roles o intentos de acceder a recursos ajenos (reemplaza excepciones de E/S del framework).
-  - `ReglaNegocioException`: lanzada ante operaciones no permitidas (comprar en eventos cancelados, eventos pasados, cancelar entradas ya usadas).
-  - `CupoInsuficienteException`: subtipo específico cuando se agota el cupo de una modalidad.
-  - `EntidadNoEncontradaException`: lanzada cuando un recurso no existe en los repositorios.
+### Catálogo de eventos
+`GET /api/eventos` devuelve solo lo que se puede comprar. Justificación: una persona no puede comprar un evento cancelado o pasado, así que no tiene sentido ofrecérselo. El detalle (`/api/eventos/{id}`) sí existe para cualquier evento, y el reporte del organizador incluye todos.
 
----
+### Persistencia compartida y concurrencia
+Cada operación **lee el archivo completo, modifica y guarda completo**, sin copia en memoria, por eso una compra hecha en Gestión se valida al instante en Validación. La API de Validación tiene sus propias clases de dominio (`Compra`, `Entrada`, `Evento`) y repositorios; sus clases modelan **todas** las propiedades que escribe Gestión, porque al reescribir el archivo una propiedad no modelada se borraría (un test lo comprueba).
 
-## 🗺️ Mapa Interactivo: Leaflet + CARTO Voyager
+**Riesgo:** los `lock` protegen solo entre hilos de un mismo proceso, y Gestión y Validación son dos procesos. Si una venta y una validación leen-modifican-escriben `compras.json` al mismo tiempo, gana la última escritura y se puede perder el cambio de la otra (por ejemplo, una validación o una venta). Se reduce acortando la ventana lectura→escritura (así está hecho), y se resolvería con acceso exclusivo al archivo (`FileStream` con `FileShare.None` y reintento, o un `Mutex` con nombre) o con una base de datos con transacciones.
 
-- En reemplazo de librerías comerciales que exigen llaves de facturación o que sufren bloqueos institucionales de CORS/403 en redes universitarias (como los servidores estándar de OpenStreetMap), el mapa del frontend utiliza **Leaflet 1.9.4** con la capa de mosaicos vectoriales rasterizados **CARTO Voyager**.
-- Permite:
-  - Navegación fluida por mapas de calles sin límites de uso ni marcas de agua.
-  - Selector interactivo con marcador arrastrable y geocodificación de direcciones vía OpenStreetMap Nominatim para organizadores.
-  - Enlaces directos a navegación externa.
+### Mapa (promoción)
+El frontend usa **Leaflet 1.9.4** con teselas de CARTO/OpenStreetMap (y Nominatim para buscar direcciones), no Google Maps. El evento guarda `Latitud` y `Longitud` además del `Lugar`: están en el dominio (`Evento`), se persisten en `eventos.json`, viajan en los DTOs y el frontend los usa para ubicar el marcador.
 
----
+## Tests
 
-## 🧪 Pruebas Unitarias Automatizadas (NUnit)
+Se ejecutan con `dotnet test` en cada solución (nombres `Metodo_Escenario_Resultado`, un comportamiento por test, archivos temporales propios y reloj fijo).
 
-### Solución `ApiGestion/Solucion.sln` — 18 tests definidos:
-1. `DescuentoPorVolumen_CompraDeCincoOMasEntradas_AplicaDescuentoDel15PorCiento`
-2. `RealizarCompra_SinCupoDisponible_LanzaExcepcion`
-3. `RealizarCompra_EventoCancelado_LanzaExcepcion`
-4. `RealizarCompra_EventoConFechaPasada_LanzaExcepcion`
-5. `RealizarCompra_GeneraEntradasIndividualesConCodigosUnicosDe6Caracteres`
-6. `ValidacionRoles_OrganizadorYComprador_AplicaRestriccionesCorrectas`
-7. `CancelarEntrada_CompradorCancelaEntradaNoUsada_RestauraCupoYMarcaCancelada`
-8. `CancelarEntrada_EntradaYaUsada_LanzaExcepcion`
-9. `ReporteRecaudacion_CalculaEntradasVendidasYTotalesCorrectamente`
-10. `CancelarModalidad_OrganizadorPuedeCancelarModalidad_QuedaMarcadaComoCancelada`
-11. `RealizarCompra_ModalidadCancelada_LanzaExcepcion`
-12. `CancelarEvento_OrganizadorPuedeCancelarEvento_QuedaMarcadoComoCancelado`
-13. `RealizarCompra_DniInexistente_LanzaAccesoDenegadoException` *(Borde Sección 5)*
-14. `RealizarCompra_OrganizadorIntentaComprar_LanzaAccesoDenegadoException` *(Borde Sección 5)*
-15. `CancelarEntrada_CompradorCancelaEntradaDeOtroComprador_LanzaAccesoDenegadoException` *(Borde Sección 5)*
-16. `RealizarCompra_CompraExactamenteCuatroEntradas_NoAplicaDescuento` *(Borde Sección 5)*
-17. `RealizarCompra_UnicidadDeCodigosEntreComprasDistintas_TodosLosCodigosSonUnicos` *(Borde Sección 5)*
-18. `ReporteRecaudacion_DespuesDeCancelarEntrada_DescuentaMontoDeLaEntradaCancelada` *(Borde Sección 5 y corrección G16)*
+- **Gestión:** descuento (1, 4, 5, 10 entradas), cupo (agotado, exacto, otra modalidad), evento cancelado / pasado / inexistente, modalidad cancelada, roles (DNI inexistente, sin DNI, organizador comprando, comprador gestionando eventos o viendo el reporte), códigos (6 alfanuméricos, únicos dentro y entre compras), cancelación de entradas (propia, ajena, usada, ya cancelada, evento comenzado, devuelve cupo), reporte (antes y **después de cancelar**), formato compartido del JSON.
+- **Validación:** entrada válida (queda usada con fecha), segunda validación rechazada, cada entrada de una compra por separado, inexistente, código vacío/nulo, minúsculas, otro evento, sin evento, cancelada (estado `Cancelada`), evento cancelado, y lectura/reescritura del formato real de Gestión sin perder campos.
 
-### Solución `ApiValidacion/Solucion.sln` — 8 tests definidos:
-1. `ValidarEntrada_EntradaValida_AutorizaIngresoYMarcaComoUsada`
-2. `ValidarEntrada_EntradaYaUsada_RechazaConEstadoYaFueUsada`
-3. `ValidarEntrada_EntradaInexistente_RechazaConEstadoNoExiste`
-4. `ValidarEntrada_EntradaDeOtroEvento_RechazaConEstadoEventoIncorrecto`
-5. `ValidarEntrada_EntradaCanceladaPorComprador_RechazaIngreso` *(Verifica Estado: Cancelada)*
-6. `ValidarEntrada_EventoCancelado_RechazaIngreso`
-7. `ValidarEntrada_DobleValidacionConsecutiva_SegundaFallaPorYaUsada`
+## Usuarios precargados (`data/usuarios.json`)
+
+2 organizadores (30111222 Lucía Fernández, 29888777 Martín Aguirre) y 8 compradores (40123456, 38456789, 41234567, 37654321, 42345678, 39876543, 43456789, 36765432), según el anexo del enunciado.
+
+## Nota para la demo
+`data/eventos.json` incluye "Noche de Jazz & Blues" con fecha ya pasada (sirve para mostrar el rechazo de compra) y eventos de prueba ("Test", "Devil God Contest"). Antes de grabar el video conviene usar un evento futuro (por ejemplo "Festival Primavera Sound 2026", 15/10/2026, o crear uno nuevo).

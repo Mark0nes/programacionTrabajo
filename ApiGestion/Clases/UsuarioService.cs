@@ -1,7 +1,7 @@
-namespace GestionEventos.Logica;
-
 using GestionEventos.Data;
 using GestionEventos.Logica.Excepciones;
+
+namespace GestionEventos.Logica;
 
 public class UsuarioService
 {
@@ -21,10 +21,11 @@ public class UsuarioService
     {
         if (string.IsNullOrWhiteSpace(dni)) return null;
         string dniLimpio = dni.Trim();
-        return _personaRepository.ObtenerUsuarios().FirstOrDefault(u => u.Dni.Equals(dniLimpio, StringComparison.OrdinalIgnoreCase));
+        return _personaRepository.ObtenerUsuarios().FirstOrDefault(u => u.Dni == dniLimpio);
     }
 
-    public Usuario ValidarRol(string? dni, RolUsuario rolEsperado)
+    /// <summary>Exige que haya un DNI y que corresponda a un usuario cargado, sin mirar el rol.</summary>
+    public Usuario ValidarUsuario(string? dni)
     {
         if (string.IsNullOrWhiteSpace(dni))
         {
@@ -34,8 +35,16 @@ public class UsuarioService
         var usuario = ObtenerPorDni(dni);
         if (usuario == null)
         {
-            throw new AccesoDenegadoException($"No existe ningún usuario registrado con el DNI '{dni}'.");
+            throw new AccesoDenegadoException($"No existe ningún usuario registrado con el DNI '{dni.Trim()}'.");
         }
+
+        return usuario;
+    }
+
+    /// <summary>Exige un DNI válido cuyo usuario tenga exactamente el rol pedido.</summary>
+    public Usuario ValidarRol(string? dni, RolUsuario rolEsperado)
+    {
+        var usuario = ValidarUsuario(dni);
 
         if (usuario.Rol != rolEsperado)
         {

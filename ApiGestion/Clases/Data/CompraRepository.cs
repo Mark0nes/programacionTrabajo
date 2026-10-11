@@ -1,7 +1,7 @@
-namespace GestionEventos.Data;
-
 using GestionEventos.Logica;
 using Newtonsoft.Json;
+
+namespace GestionEventos.Data;
 
 public class CompraRepository
 {
@@ -23,6 +23,11 @@ public class CompraRepository
             }
 
             string json = File.ReadAllText(_rutaArchivo);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new List<Compra>();
+            }
+
             return JsonConvert.DeserializeObject<List<Compra>>(json) ?? new List<Compra>();
         }
     }
@@ -31,14 +36,13 @@ public class CompraRepository
     {
         lock (Bloqueo)
         {
-            string? dir = Path.GetDirectoryName(_rutaArchivo);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            string? directorio = Path.GetDirectoryName(_rutaArchivo);
+            if (!string.IsNullOrEmpty(directorio) && !Directory.Exists(directorio))
             {
-                Directory.CreateDirectory(dir);
+                Directory.CreateDirectory(directorio);
             }
 
-            string json = JsonConvert.SerializeObject(compras, Formatting.Indented);
-            File.WriteAllText(_rutaArchivo, json);
+            File.WriteAllText(_rutaArchivo, JsonConvert.SerializeObject(compras, Formatting.Indented));
         }
     }
 }

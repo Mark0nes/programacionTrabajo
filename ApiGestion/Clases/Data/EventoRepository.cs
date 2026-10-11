@@ -1,7 +1,7 @@
-namespace GestionEventos.Data;
-
 using GestionEventos.Logica;
 using Newtonsoft.Json;
+
+namespace GestionEventos.Data;
 
 public class EventoRepository
 {
@@ -23,6 +23,11 @@ public class EventoRepository
             }
 
             string json = File.ReadAllText(_rutaArchivo);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new List<Evento>();
+            }
+
             return JsonConvert.DeserializeObject<List<Evento>>(json) ?? new List<Evento>();
         }
     }
@@ -31,14 +36,13 @@ public class EventoRepository
     {
         lock (Bloqueo)
         {
-            string? dir = Path.GetDirectoryName(_rutaArchivo);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            string? directorio = Path.GetDirectoryName(_rutaArchivo);
+            if (!string.IsNullOrEmpty(directorio) && !Directory.Exists(directorio))
             {
-                Directory.CreateDirectory(dir);
+                Directory.CreateDirectory(directorio);
             }
 
-            string json = JsonConvert.SerializeObject(eventos, Formatting.Indented);
-            File.WriteAllText(_rutaArchivo, json);
+            File.WriteAllText(_rutaArchivo, JsonConvert.SerializeObject(eventos, Formatting.Indented));
         }
     }
 }

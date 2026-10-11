@@ -13,6 +13,8 @@ public class ValidacionCompraRepository : IValidacionCompraRepository
         _rutaArchivo = rutaArchivo ?? DataPathHelper.ObtenerRuta("compras.json");
     }
 
+    // Siempre se lee el archivo de nuevo (sin copia en memoria): una compra hecha hace cinco
+    // minutos en la API de Gestión tiene que poder validarse ya.
     public List<Compra> ObtenerCompras()
     {
         lock (Bloqueo)
@@ -23,41 +25,28 @@ public class ValidacionCompraRepository : IValidacionCompraRepository
             }
 
             string json = File.ReadAllText(_rutaArchivo);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new List<Compra>();
+            }
+
             return JsonConvert.DeserializeObject<List<Compra>>(json) ?? new List<Compra>();
         }
     }
 
+    // Ojo: el lock solo protege entre hilos de ESTE proceso. Gestión es otro proceso y puede escribir
+    // el mismo archivo a la vez (ver README, sección de concurrencia).
     public void GuardarCompras(List<Compra> compras)
     {
         lock (Bloqueo)
         {
-            string? dir = Path.GetDirectoryName(_rutaArchivo);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            string? directorio = Path.GetDirectoryName(_rutaArchivo);
+            if (!string.IsNullOrEmpty(directorio) && !Directory.Exists(directorio))
             {
-                Directory.CreateDirectory(dir);
+                Directory.CreateDirectory(directorio);
             }
 
-            string json = JsonConvert.SerializeObject(compras, Formatting.Indented);
-            File.WriteAllText(_rutaArchivo, json);
+            File.WriteAllText(_rutaArchivo, JsonConvert.SerializeObject(compras, Formatting.Indented));
         }
-    }
-
-    public (Compra? Compra, Entrada? Entrada) BuscarPorCodigo(string codigo)
-    {
-        var compras = ObtenerCompras();
-        string codigoBuscado = codigo.Trim().ToUpperInvariant();
-
-        foreach (var compra in compras)
-        {
-            var entrada = compra.Entradas.FirstOrDefault(e =>
-                string.Equals(e.Codigo, codigoBuscado, StringComparison.OrdinalIgnoreCase));
-
-            if (entrada != null)
-            {
-                return (compra, entrada);
-            }
-        }
-
-        return (null, null);
     }
 }

@@ -8,10 +8,6 @@ const state = {
   eventoSeleccionado: null,
   compraActual: null,
   historialValidaciones: [],
-  leafletMap: null,
-  mapMarker: null,
-  mapaCrearEvento: null,
-  markerCrearEvento: null
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -326,9 +322,9 @@ function renderDetalleEvento(evento) {
     evento.modalidades.forEach(m => {
       const opt = document.createElement("option");
       opt.value = m.id;
-      const estadoTxt = m.cancelada ? ' [CANCELADA]' : ` (Disponibles: ${m.cupoDisponible})`;
+      const estadoTxt = m.cancelada ? ' [CANCELADA]' : (m.cupoDisponible <= 0 ? ' [SIN CUPO]' : ` (Disponibles: ${m.cupoDisponible})`);
       opt.textContent = `${m.nombre} - $${m.precio.toLocaleString('es-AR')}${estadoTxt}`;
-      if ((m.cancelada || esPasado || evento.cancelado) && state.usuarioActivo?.rol === "Comprador") {
+      if ((m.cancelada || m.cupoDisponible <= 0 || esPasado || evento.cancelado) && state.usuarioActivo?.rol === "Comprador") {
         opt.disabled = true;
       }
       selectMod.appendChild(opt);
@@ -363,51 +359,27 @@ function renderDetalleEvento(evento) {
   calcularPrecioCompra();
 }
 
+function crearUrlMapaGoogle(lat, lng, zoom = 15) {
+  const latitud = Number.isFinite(Number(lat)) ? Number(lat) : -34.6037;
+  const longitud = Number.isFinite(Number(lng)) ? Number(lng) : -58.3816;
+  return `https://maps.google.com/maps?q=${latitud},${longitud}&z=${zoom}&output=embed`;
+}
+
 function renderizarMapa(lat, lng, titulo, lugar) {
-  const defaultLat = -34.6037;
-  const defaultLng = -58.3816;
-  const finalLat = (lat !== null && lat !== undefined && !isNaN(lat)) ? lat : defaultLat;
-  const finalLng = (lng !== null && lng !== undefined && !isNaN(lng)) ? lng : defaultLng;
+  const finalLat = (lat !== null && lat !== undefined && !Number.isNaN(Number(lat))) ? Number(lat) : -34.6037;
+  const finalLng = (lng !== null && lng !== undefined && !Number.isNaN(Number(lng))) ? Number(lng) : -58.3816;
 
-  setTimeout(() => {
-    const mapDiv = document.getElementById("mapContainer");
-    if (!mapDiv) return;
+  const mapDiv = document.getElementById("mapContainer");
+  if (!mapDiv) return;
 
-    if (!state.leafletMap) {
-      state.leafletMap = L.map('mapContainer', { attributionControl: false }).setView([finalLat, finalLng], 15);
-
-      const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-      });
-      const googleSatelite = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-      });
-
-      googleCalles.addTo(state.leafletMap);
-      L.control.layers({ "Google Maps (Calles)": googleCalles, "Google Maps (Satelite)": googleSatelite }, null, { position: 'topright' }).addTo(state.leafletMap);
-    } else {
-      state.leafletMap.invalidateSize();
-      state.leafletMap.setView([finalLat, finalLng], 15);
-    }
-
-    if (state.mapMarker) {
-      state.leafletMap.removeLayer(state.mapMarker);
-    }
-
-    const gmapsLink = `https://www.google.com/maps/search/?api=1&query=${finalLat},${finalLng}`;
-    state.mapMarker = L.marker([finalLat, finalLng]).addTo(state.leafletMap);
-    state.mapMarker.bindPopup(`
-      <div style="min-width: 180px; padding: 2px;">
-        <strong>${titulo}</strong><br>
-        <span style="color: #64748b; font-size: 0.825rem; display: block; margin: 0.25rem 0;">${lugar}</span>
-        <a href="${gmapsLink}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; font-weight: 600; font-size: 0.8rem; text-decoration: underline;">
-          Abrir en Google Maps
-        </a>
-      </div>
-    `).openPopup();
-  }, 100);
+  mapDiv.innerHTML = `
+    <iframe
+      title="Mapa de ubicación del evento"
+      src="${crearUrlMapaGoogle(finalLat, finalLng)}"
+      width="100%" height="100%" style="border:0; min-height:280px; border-radius:12px;"
+      loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+      allowfullscreen>
+    </iframe>`;
 }
 
 function actualizarInfoModalidadSeleccionada() {
@@ -751,7 +723,9 @@ async function actualizarMisComprasRapidas() {
   cont.innerHTML = "<span class='text-muted' style='font-size: 0.85rem;'>Cargando compras del usuario...</span>";
 
   try {
-    const res = await fetch(`${API_GESTION}/compras?dni=${state.usuarioActivo.dni}`);
+    const res = await fetch(`${API_GESTION}/compras?dni=${encodeURIComponent(state.usuarioActivo.dni)}`, {
+      headers: { "X-Dni": state.usuarioActivo.dni.toString() }
+    });
     if (!res.ok) throw new Error("Error al obtener compras.");
     const comprasUsuario = await res.json();
 
@@ -976,8 +950,10 @@ async function inicializarGestionEventos() {
 
 async function cargarEventosGestion() {
   try {
-    const res = await fetch(`${API_GESTION}/eventos`);
-    if (!res.ok) throw new Error("Error al obtener eventos.");
+    const res = await fetch(`${API_GESTION}/eventos/gestion`, {
+      headers: { "X-Dni": state.usuarioActivo?.dni?.toString() || "" }
+    });
+    if (!res.ok) throw new Error("Error al obtener eventos para gestión.");
     state.eventos = await res.json();
 
     const selects = ["modalidadEventoSelect", "cancelarEventoSelect"];
@@ -1048,6 +1024,8 @@ async function crearNuevoEvento(e) {
     const inputLng = document.getElementById("nuevoEventoLongitud");
     if (inputLat) inputLat.value = "-34.6037";
     if (inputLng) inputLng.value = "-58.3816";
+    const mapa = document.getElementById("mapaCrearEvento")?.querySelector("iframe");
+    if (mapa) mapa.src = crearUrlMapaGoogle(-34.6037, -58.3816, 13);
 
     await cargarEventosGestion();
 
@@ -1230,57 +1208,49 @@ function renderizarModalidadesParaCancelar() {
 }
 
 function inicializarMapaCrearEvento() {
-  setTimeout(() => {
-    const mapDiv = document.getElementById("mapaCrearEvento");
-    if (!mapDiv) return;
+  const mapDiv = document.getElementById("mapaCrearEvento");
+  if (!mapDiv) return;
 
-    let defaultLat = parseFloat(document.getElementById("nuevoEventoLatitud")?.value) || -34.6037;
-    let defaultLng = parseFloat(document.getElementById("nuevoEventoLongitud")?.value) || -58.3816;
+  const latInput = document.getElementById("nuevoEventoLatitud");
+  const lngInput = document.getElementById("nuevoEventoLongitud");
+  const lat = Number.parseFloat(latInput?.value) || -34.6037;
+  const lng = Number.parseFloat(lngInput?.value) || -58.3816;
 
-    if (!state.mapaCrearEvento) {
-      state.mapaCrearEvento = L.map('mapaCrearEvento', { attributionControl: false }).setView([defaultLat, defaultLng], 13);
+  mapDiv.innerHTML = `
+    <iframe title="Vista previa de Google Maps"
+      src="${crearUrlMapaGoogle(lat, lng, 13)}"
+      width="100%" height="100%" style="border:0; min-height:250px; border-radius:8px;"
+      loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;
 
-      const googleCalles = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-      });
-      googleCalles.addTo(state.mapaCrearEvento);
-
-      state.markerCrearEvento = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(state.mapaCrearEvento);
-
-      state.markerCrearEvento.on('dragend', function (event) {
-        const marker = event.target;
-        const position = marker.getLatLng();
-        actualizarUbicacionSeleccionada(position.lat, position.lng, true);
-      });
-
-      state.mapaCrearEvento.on('click', function (e) {
-        state.markerCrearEvento.setLatLng(e.latlng);
-        actualizarUbicacionSeleccionada(e.latlng.lat, e.latlng.lng, true);
-      });
-    } else {
-      state.mapaCrearEvento.invalidateSize();
-      state.mapaCrearEvento.setView([defaultLat, defaultLng], 13);
-      if (state.markerCrearEvento) {
-        state.markerCrearEvento.setLatLng([defaultLat, defaultLng]);
-      }
+  const actualizarDesdeInputs = () => {
+    const nuevaLat = Number.parseFloat(latInput?.value);
+    const nuevaLng = Number.parseFloat(lngInput?.value);
+    if (Number.isFinite(nuevaLat) && Number.isFinite(nuevaLng)) {
+      mapDiv.querySelector("iframe").src = crearUrlMapaGoogle(nuevaLat, nuevaLng, 13);
     }
-  }, 150);
+  };
+
+  latInput?.addEventListener("change", actualizarDesdeInputs);
+  lngInput?.addEventListener("change", actualizarDesdeInputs);
 }
 
 function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
   const inputLat = document.getElementById("nuevoEventoLatitud");
   const inputLng = document.getElementById("nuevoEventoLongitud");
 
-  if (inputLat) inputLat.value = lat.toFixed(6);
-  if (inputLng) inputLng.value = lng.toFixed(6);
+  if (inputLat) inputLat.value = Number(lat).toFixed(6);
+  if (inputLng) inputLng.value = Number(lng).toFixed(6);
 
   if (buscarNombre) {
     const inputLugar = document.getElementById("nuevoEventoLugar");
     if (inputLugar && !inputLugar.value.trim()) {
-      inputLugar.value = `Ubicacion (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      inputLugar.value = `Ubicación (${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)})`;
     }
   }
+
+  const mapDiv = document.getElementById("mapaCrearEvento");
+  const iframe = mapDiv?.querySelector("iframe");
+  if (iframe) iframe.src = crearUrlMapaGoogle(Number(lat), Number(lng), 15);
 }
 
 async function buscarLugarEnMapa() {
@@ -1306,24 +1276,18 @@ async function buscarLugarEnMapa() {
     const data = await res.json();
 
     if (!data || data.length === 0) {
-      alert(`No se encontraron coordenadas para "${query}". Puede hacer clic en el mapa para marcar la ubicacion.`);
+      alert(`No se encontraron coordenadas para "${query}". Revise la dirección o ingrese las coordenadas manualmente.`);
       return;
     }
 
     const lat = parseFloat(data[0].lat);
     const lon = parseFloat(data[0].lon);
 
-    if (state.mapaCrearEvento && state.markerCrearEvento) {
-      state.mapaCrearEvento.setView([lat, lon], 15);
-      state.markerCrearEvento.setLatLng([lat, lon]);
-      state.markerCrearEvento.bindPopup(`<strong>Ubicacion seleccionada:</strong><br>${data[0].display_name}`).openPopup();
-    }
-
     actualizarUbicacionSeleccionada(lat, lon, false);
 
   } catch (err) {
     console.error("Error al buscar en mapa:", err);
-    alert("No se pudo conectar con el servicio de busqueda. Puede posicionar el marcador haciendo clic en el mapa.");
+    alert("No se pudo conectar con el servicio de busqueda. Puede ingresar la latitud y longitud manualmente.");
   } finally {
     if (btnBuscar) {
       btnBuscar.disabled = false;

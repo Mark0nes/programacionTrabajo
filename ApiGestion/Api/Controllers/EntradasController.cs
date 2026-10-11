@@ -1,5 +1,5 @@
-using GestionEventos.Logica;
 using GestionEventos.Api.DTOs;
+using GestionEventos.Logica;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionEventos.Api.Controllers;
@@ -8,43 +8,20 @@ namespace GestionEventos.Api.Controllers;
 public class EntradasController : BaseApiController
 {
     private readonly CompraService _compraService;
-    private readonly UsuarioService _usuarioService;
 
-    public EntradasController(CompraService compraService, UsuarioService usuarioService)
+    public EntradasController(CompraService compraService)
     {
         _compraService = compraService;
-        _usuarioService = usuarioService;
     }
 
+    /// <summary>(Promoción) Cancela una entrada propia no usada y devuelve el cupo a la modalidad.</summary>
     [HttpDelete("{codigo}")]
     public IActionResult CancelarEntrada(string codigo)
     {
-        try
+        return Ejecutar(() =>
         {
-            string? dni = ObtenerDni();
-            _usuarioService.ValidarRol(dni, RolUsuario.Comprador);
-
-            var entradaCancelada = _compraService.CancelarEntrada(codigo, dni!);
-            var entradaDto = new EntradaCanceladaDto(
-                entradaCancelada.Codigo,
-                entradaCancelada.IdEvento,
-                entradaCancelada.IdModalidad,
-                entradaCancelada.IdCompra,
-                entradaCancelada.Cancelada
-            );
-            return Ok(new { mensaje = "Entrada cancelada con éxito. El cupo ha sido restablecido.", entrada = entradaDto });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+            var entrada = _compraService.CancelarEntrada(codigo, ObtenerDni());
+            return Ok(new AccionResponse<EntradaResponse>("Entrada cancelada con éxito. El cupo ha sido restablecido.", entrada.AResponse()));
+        });
     }
 }

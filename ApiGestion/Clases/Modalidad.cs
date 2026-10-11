@@ -1,35 +1,25 @@
-namespace GestionEventos.Logica;
-
-using Newtonsoft.Json;
-using System.Text.Json.Serialization;
 using GestionEventos.Logica.Excepciones;
+using Newtonsoft.Json;
+
+namespace GestionEventos.Logica;
 
 public class Modalidad
 {
-    [JsonProperty]
-    [JsonInclude]
-    public Guid Id { get; private set; } = Guid.NewGuid();
+    /// <summary>Cantidad de entradas desde la cual se aplica el descuento por volumen.</summary>
+    public const int CantidadMinimaParaDescuento = 5;
 
-    public string Nombre { get; private set; } = string.Empty;
+    /// <summary>Descuento por volumen (15%).</summary>
+    public const decimal PorcentajeDescuento = 0.15m;
 
-    [JsonProperty]
-    [JsonInclude]
-    public decimal Precio { get; private set; }
+    [JsonProperty] public Guid Id { get; private set; } = Guid.NewGuid();
+    [JsonProperty] public string Nombre { get; private set; } = string.Empty;
+    [JsonProperty] public decimal Precio { get; private set; }
+    [JsonProperty] public string Beneficios { get; private set; } = string.Empty;
+    [JsonProperty] public int CupoMaximo { get; private set; }
+    [JsonProperty] public int CupoDisponible { get; private set; }
+    [JsonProperty] public bool Cancelada { get; private set; }
 
-    public string Beneficios { get; private set; } = string.Empty;
-
-    [JsonProperty]
-    [JsonInclude]
-    public int CupoMaximo { get; private set; }
-
-    [JsonProperty]
-    [JsonInclude]
-    public int CupoDisponible { get; private set; }
-
-    [JsonProperty]
-    [JsonInclude]
-    public bool Cancelada { get; private set; } = false;
-
+    // Constructor vacío: lo usa Newtonsoft para reconstruir la entidad desde el JSON.
     public Modalidad()
     {
     }
@@ -38,17 +28,17 @@ public class Modalidad
     {
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            throw new ArgumentException("El nombre no puede estar vacío o contener solo espacios.");
+            throw new ReglaNegocioException("El nombre de la modalidad no puede estar vacío.");
         }
 
         if (precio <= 0)
         {
-            throw new ArgumentException("El precio debe ser mayor a cero.");
+            throw new ReglaNegocioException("El precio debe ser mayor a cero.");
         }
 
         if (cupoMaximo <= 0)
         {
-            throw new ArgumentException("El cupo máximo debe ser mayor a cero.");
+            throw new ReglaNegocioException("El cupo máximo debe ser mayor a cero.");
         }
 
         Id = Guid.NewGuid();
@@ -74,12 +64,12 @@ public class Modalidad
     {
         if (Cancelada)
         {
-            throw new ReglaNegocioException("No se pueden vender entradas para una modalidad cancelada.");
+            throw new ReglaNegocioException($"La modalidad '{Nombre}' fue cancelada y no admite ventas.");
         }
 
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad de entradas debe ser mayor que cero.");
+            throw new ReglaNegocioException("La cantidad de entradas debe ser mayor que cero.");
         }
 
         if (CupoDisponible < cantidad)
@@ -94,24 +84,31 @@ public class Modalidad
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad a restaurar debe ser mayor que cero.");
+            throw new ReglaNegocioException("La cantidad a restaurar debe ser mayor que cero.");
         }
 
         CupoDisponible = Math.Min(CupoMaximo, CupoDisponible + cantidad);
     }
 
+    /// <summary>
+    /// Total a pagar por <paramref name="cantidad"/> entradas. La regla de precio vive acá,
+    /// junto al dato del precio, para poder probarla sola: con 5 o más entradas de la misma
+    /// modalidad en una compra se descuenta el 15% del total.
+    /// </summary>
     public decimal CalcularPrecio(int cantidad)
     {
         if (cantidad <= 0)
         {
-            throw new ArgumentException("La cantidad de entradas debe ser mayor que cero.");
+            throw new ReglaNegocioException("La cantidad de entradas debe ser mayor que cero.");
         }
 
-        if (cantidad >= 5)
+        decimal total = Precio * cantidad;
+
+        if (cantidad >= CantidadMinimaParaDescuento)
         {
-            return Math.Round(Precio * cantidad * 0.85m, 2);
+            total = total * (1m - PorcentajeDescuento);
         }
 
-        return Precio * cantidad;
+        return Math.Round(total, 2);
     }
 }

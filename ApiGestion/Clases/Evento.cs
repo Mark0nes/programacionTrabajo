@@ -1,29 +1,21 @@
-namespace GestionEventos.Logica;
-
-using Newtonsoft.Json;
-using System.Text.Json.Serialization;
 using GestionEventos.Logica.Excepciones;
+using Newtonsoft.Json;
+
+namespace GestionEventos.Logica;
 
 public class Evento
 {
-    [JsonProperty]
-    [JsonInclude]
-    public Guid Id { get; private set; } = Guid.NewGuid();
-
-    public string Nombre { get; private set; } = string.Empty;
-    public string Descripcion { get; private set; } = string.Empty;
-    public DateTime Fecha { get; private set; }
-    public string Lugar { get; private set; } = string.Empty;
-    public double? Latitud { get; private set; }
-    public double? Longitud { get; private set; }
-
-    [JsonProperty]
-    [JsonInclude]
-    public bool Cancelado { get; private set; }
-
-    [JsonProperty]
-    [JsonInclude]
-    public List<Modalidad> Modalidades { get; private set; } = new List<Modalidad>();
+    // [JsonProperty] en TODAS las propiedades con "private set": sin el atributo, Newtonsoft
+    // no puede asignarlas al leer eventos.json y el evento se reconstruye con datos vacíos.
+    [JsonProperty] public Guid Id { get; private set; } = Guid.NewGuid();
+    [JsonProperty] public string Nombre { get; private set; } = string.Empty;
+    [JsonProperty] public string Descripcion { get; private set; } = string.Empty;
+    [JsonProperty] public DateTime Fecha { get; private set; }
+    [JsonProperty] public string Lugar { get; private set; } = string.Empty;
+    [JsonProperty] public double? Latitud { get; private set; }
+    [JsonProperty] public double? Longitud { get; private set; }
+    [JsonProperty] public bool Cancelado { get; private set; }
+    [JsonProperty] public List<Modalidad> Modalidades { get; private set; } = new List<Modalidad>();
 
     public Evento()
     {
@@ -31,15 +23,7 @@ public class Evento
 
     public Evento(string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
     {
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            throw new ArgumentException("El nombre del evento no puede estar vacío.");
-        }
-
-        if (string.IsNullOrWhiteSpace(lugar))
-        {
-            throw new ArgumentException("El lugar del evento no puede estar vacío.");
-        }
+        ValidarDatos(nombre, lugar);
 
         Id = Guid.NewGuid();
         Nombre = nombre.Trim();
@@ -52,11 +36,20 @@ public class Evento
         Modalidades = new List<Modalidad>();
     }
 
+    /// <summary>
+    /// Las fechas que llegan del frontend vienen en UTC ("...Z"); las del archivo, sin zona.
+    /// Para comparar contra la hora actual se llevan siempre a hora local.
+    /// </summary>
+    public static DateTime ALocal(DateTime fecha)
+    {
+        return fecha.Kind == DateTimeKind.Utc ? fecha.ToLocalTime() : fecha;
+    }
+
     public void AgregarModalidad(Modalidad modalidad)
     {
         if (modalidad == null)
         {
-            throw new ArgumentNullException(nameof(modalidad), "La modalidad no puede ser nula.");
+            throw new ReglaNegocioException("La modalidad no puede ser nula.");
         }
 
         if (Cancelado)
@@ -64,23 +57,12 @@ public class Evento
             throw new ReglaNegocioException("No se pueden agregar modalidades a un evento cancelado.");
         }
 
-        Modalidades ??= new List<Modalidad>();
         Modalidades.Add(modalidad);
-    }
-
-    public void EliminarModalidad(Guid idModalidad)
-    {
-        Modalidades?.RemoveAll(m => m.Id == idModalidad);
-    }
-
-    public List<Modalidad> ObtenerModalidades()
-    {
-        return Modalidades ?? new List<Modalidad>();
     }
 
     public Modalidad? ObtenerModalidadPorId(Guid id)
     {
-        return Modalidades?.FirstOrDefault(m => m.Id == id);
+        return Modalidades.FirstOrDefault(m => m.Id == id);
     }
 
     public void Cancelar()
@@ -88,27 +70,21 @@ public class Evento
         Cancelado = true;
     }
 
-    public bool EstaDisponible()
+    /// <summary>La fecha del evento ya pasó respecto de <paramref name="ahora"/>.</summary>
+    public bool YaPaso(DateTime ahora)
     {
-        return !Cancelado && Fecha >= DateTime.Now;
+        return ALocal(Fecha) < ahora;
     }
 
-    public Evento Actualizar(string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
+    /// <summary>Se puede vender: no está cancelado y todavía no ocurrió.</summary>
+    public bool EstaDisponible(DateTime ahora)
     {
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            throw new ArgumentException("El nombre del evento no puede estar vacío.");
-        }
+        return !Cancelado && !YaPaso(ahora);
+    }
 
-        if (string.IsNullOrWhiteSpace(lugar))
-        {
-            throw new ArgumentException("El lugar del evento no puede estar vacío.");
-        }
-
-        if (fecha < DateTime.Now)
-        {
-            throw new ArgumentException("La fecha del evento no puede ser anterior a la fecha y hora actual.");
-        }
+    public void Actualizar(string nombre, string descripcion, DateTime fecha, string lugar, double? latitud = null, double? longitud = null)
+    {
+        ValidarDatos(nombre, lugar);
 
         Nombre = nombre.Trim();
         Descripcion = descripcion?.Trim() ?? string.Empty;
@@ -116,7 +92,18 @@ public class Evento
         Lugar = lugar.Trim();
         Latitud = latitud;
         Longitud = longitud;
+    }
 
-        return this;
+    private static void ValidarDatos(string nombre, string lugar)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            throw new ReglaNegocioException("El nombre del evento no puede estar vacío.");
+        }
+
+        if (string.IsNullOrWhiteSpace(lugar))
+        {
+            throw new ReglaNegocioException("El lugar del evento no puede estar vacío.");
+        }
     }
 }

@@ -23,13 +23,17 @@ public class ValidacionEventoRepository : IValidacionEventoRepository
             }
 
             string json = File.ReadAllText(_rutaArchivo);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new List<Evento>();
+            }
+
             return JsonConvert.DeserializeObject<List<Evento>>(json) ?? new List<Evento>();
         }
     }
 
     public Evento? ObtenerPorId(Guid id)
     {
-        var eventos = ObtenerEventos();
-        return eventos.FirstOrDefault(e => e.Id == id);
+        return ObtenerEventos().FirstOrDefault(e => e.Id == id);
     }
 }

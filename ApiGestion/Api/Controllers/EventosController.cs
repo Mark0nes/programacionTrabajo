@@ -1,5 +1,5 @@
-using GestionEventos.Logica;
 using GestionEventos.Api.DTOs;
+using GestionEventos.Logica;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionEventos.Api.Controllers;
@@ -8,192 +8,83 @@ namespace GestionEventos.Api.Controllers;
 public class EventosController : BaseApiController
 {
     private readonly EventoService _eventoService;
-    private readonly UsuarioService _usuarioService;
 
-    public EventosController(EventoService eventoService, UsuarioService usuarioService)
+    public EventosController(EventoService eventoService)
     {
         _eventoService = eventoService;
-        _usuarioService = usuarioService;
     }
 
+    /// <summary>
+    /// Catálogo. Por defecto lista solo lo que se puede comprar (eventos no cancelados y que todavía no
+    /// ocurrieron). Con ?incluirNoDisponibles=true también devuelve los cancelados y los ya pasados.
+    /// </summary>
     [HttpGet]
-    public IActionResult ObtenerEventos()
+    public IActionResult ObtenerEventos([FromQuery] bool incluirNoDisponibles = false)
     {
-        var eventos = _eventoService.ObtenerDisponibles();
-        var eventoDtos = eventos.Select(evento => new EventoDto(
-            evento.Nombre,
-            evento.Descripcion,
-            evento.Fecha,
-            evento.Lugar,
-            evento.Latitud,
-            evento.Longitud
-        )).ToList();
-        return Ok(eventoDtos);
+        return Ejecutar(() =>
+        {
+            var eventos = incluirNoDisponibles ? _eventoService.ObtenerTodos() : _eventoService.ObtenerDisponibles();
+            return Ok(eventos.Select(e => e.AResponse()).ToList());
+        });
     }
 
+    /// <summary>Detalle con sus modalidades. Existe para cualquier evento, también cancelado o pasado.</summary>
     [HttpGet("{id:guid}")]
     public IActionResult ObtenerPorId(Guid id)
     {
-        var evento = _eventoService.ObtenerPorId(id);
-        var eventoDto = evento != null ? new EventoDto(
-            evento.Nombre,
-            evento.Descripcion,
-            evento.Fecha,
-            evento.Lugar,
-            evento.Latitud,
-            evento.Longitud
-        ) : null;
-        return evento != null
-            ? Ok(eventoDto)
-            : NotFound(new { mensaje = $"Evento con ID '{id}' no encontrado." });
+        return Ejecutar(() => Ok(_eventoService.ObtenerPorId(id).AResponse()));
     }
 
     [HttpPost]
-    public IActionResult Crear([FromBody] EventoDto dto)
+    public IActionResult Crear([FromBody] EventoRequest request)
     {
-        try
+        return Ejecutar(() =>
         {
-            string? dni = ObtenerDni();
-            _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
-
-            var nuevoEvento = _eventoService.Crear(dto.Nombre, dto.Descripcion, dto.Fecha, dto.Lugar, dto.Latitud, dto.Longitud);
-            var eventoDto = new EventoDto(
-                nuevoEvento.Nombre,
-                nuevoEvento.Descripcion,
-                nuevoEvento.Fecha,
-                nuevoEvento.Lugar,
-                nuevoEvento.Latitud,
-                nuevoEvento.Longitud
-            );
-            return Created($"/api/eventos/{nuevoEvento.Id}", eventoDto);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+            var evento = _eventoService.Crear(ObtenerDni(), request.Nombre, request.Descripcion ?? string.Empty,
+                request.Fecha!.Value, request.Lugar, request.Latitud, request.Longitud);
+            return Created($"/api/eventos/{evento.Id}", evento.AResponse());
+        });
     }
 
     [HttpPut("{id:guid}")]
-    public IActionResult Modificar(Guid id, [FromBody] EventoDto dto)
+    public IActionResult Modificar(Guid id, [FromBody] EventoRequest request)
     {
-        try
+        return Ejecutar(() =>
         {
-            string? dni = ObtenerDni();
-            _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
-
-            var eventoModificado = _eventoService.Modificar(id, dto.Nombre, dto.Descripcion, dto.Fecha, dto.Lugar, dto.Latitud, dto.Longitud);
-            var eventoDto = new EventoDto(
-                eventoModificado.Nombre,
-                eventoModificado.Descripcion,
-                eventoModificado.Fecha,
-                eventoModificado.Lugar,
-                eventoModificado.Latitud,
-                eventoModificado.Longitud
-            );
-            return Ok(eventoDto);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+            var evento = _eventoService.Modificar(ObtenerDni(), id, request.Nombre, request.Descripcion ?? string.Empty,
+                request.Fecha!.Value, request.Lugar, request.Latitud, request.Longitud);
+            return Ok(evento.AResponse());
+        });
     }
 
     [HttpPut("{id:guid}/cancelar")]
     public IActionResult Cancelar(Guid id)
     {
-        try
+        return Ejecutar(() =>
         {
-            string? dni = ObtenerDni();
-            _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
-
-            var eventoCancelado = _eventoService.Cancelar(id);
-            var eventoDto = new EventoDto(
-                eventoCancelado.Nombre,
-                eventoCancelado.Descripcion,
-                eventoCancelado.Fecha,
-                eventoCancelado.Lugar,
-                eventoCancelado.Latitud,
-                eventoCancelado.Longitud
-            );
-            return Ok(new { mensaje = "Evento cancelado exitosamente.", evento = eventoDto });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
+            var evento = _eventoService.Cancelar(ObtenerDni(), id);
+            return Ok(new AccionResponse<EventoResponse>("Evento cancelado exitosamente.", evento.AResponse()));
+        });
     }
 
     [HttpPost("{id:guid}/modalidades")]
-    public IActionResult AgregarModalidad(Guid id, [FromBody] ModalidadDto dto)
+    public IActionResult AgregarModalidad(Guid id, [FromBody] ModalidadRequest request)
     {
-        try
+        return Ejecutar(() =>
         {
-            string? dni = ObtenerDni();
-            _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
-
-            var modalidad = _eventoService.AgregarModalidad(id, dto.Nombre, dto.Precio, dto.Beneficios, dto.CupoMaximo);
-            var modalidadDto = new ModalidadDto(
-                modalidad.Nombre,
-                modalidad.Precio,
-                modalidad.Beneficios,
-                modalidad.CupoMaximo
-            );
-            return Created($"/api/eventos/{id}/modalidades/{modalidad.Id}", modalidadDto);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+            var modalidad = _eventoService.AgregarModalidad(ObtenerDni(), id, request.Nombre, request.Precio,
+                request.Beneficios ?? string.Empty, request.CupoMaximo);
+            return Created($"/api/eventos/{id}/modalidades/{modalidad.Id}", modalidad.AResponse());
+        });
     }
 
     [HttpPut("{idEvento:guid}/modalidades/{idModalidad:guid}/cancelar")]
     public IActionResult CancelarModalidad(Guid idEvento, Guid idModalidad)
     {
-        try
+        return Ejecutar(() =>
         {
-            string? dni = ObtenerDni();
-            _usuarioService.ValidarRol(dni, RolUsuario.Organizador);
-
-            var modalidadCancelada = _eventoService.CancelarModalidad(idEvento, idModalidad);
-            var modalidadDto = new ModalidadDto(
-                modalidadCancelada.Nombre,
-                modalidadCancelada.Precio,
-                modalidadCancelada.Beneficios,
-                modalidadCancelada.CupoMaximo
-            );
-            return Ok(new { mensaje = "Modalidad cancelada exitosamente.", modalidad = modalidadDto });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
+            var modalidad = _eventoService.CancelarModalidad(ObtenerDni(), idEvento, idModalidad);
+            return Ok(new AccionResponse<ModalidadResponse>("Modalidad cancelada exitosamente.", modalidad.AResponse()));
+        });
     }
 }

@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
+using ValidacionEventos.Api.DTOs;
 using ValidacionEventos.Data;
 using ValidacionEventos.Logica;
 
@@ -9,6 +11,19 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
+
+// Pedido con formato inválido (falta el código o el evento): 400 con el mismo formato de respuesta que la validación.
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = contexto =>
+    {
+        var mensajes = contexto.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Datos inválidos." : e.ErrorMessage);
+        return new BadRequestObjectResult(
+            new ValidacionResponse(false, "DatosInvalidos", string.Join(" ", mensajes), null, null, null, null));
+    };
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

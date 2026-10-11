@@ -1,5 +1,5 @@
-using GestionEventos.Logica;
 using GestionEventos.Api.DTOs;
+using GestionEventos.Logica;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GestionEventos.Api.Controllers;
@@ -8,103 +8,33 @@ namespace GestionEventos.Api.Controllers;
 public class ComprasController : BaseApiController
 {
     private readonly CompraService _compraService;
-    private readonly UsuarioService _usuarioService;
 
-    public ComprasController(CompraService compraService, UsuarioService usuarioService)
+    public ComprasController(CompraService compraService)
     {
         _compraService = compraService;
-        _usuarioService = usuarioService;
     }
 
     [HttpPost]
-    public IActionResult RegistrarCompra([FromBody] CompraDto dto)
+    public IActionResult RegistrarCompra([FromBody] CompraRequest request)
     {
-        try
+        return Ejecutar(() =>
         {
-            string? dni = ObtenerDni();
-            _usuarioService.ValidarRol(dni, RolUsuario.Comprador);
-
-            var compra = _compraService.RealizarCompra(dni!, dto.IdEvento, dto.IdModalidad, dto.Cantidad);
-            var compraDto = new CompraDto(
-                compra.DniComprador,
-                compra.IdEvento,
-                compra.IdModalidad,
-                compra.Cantidad
-            );
-            return Created($"/api/compras/{compra.Id}", compra);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { error = ex.Message });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { error = ex.Message });
-        }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+            var compra = _compraService.RealizarCompra(ObtenerDni(), request.IdEvento!.Value, request.IdModalidad!.Value, request.Cantidad);
+            return StatusCode(StatusCodes.Status201Created, compra.AResponse());
+        });
     }
 
+    /// <summary>Detalle de la compra y estado de cada entrada. Un comprador solo ve las suyas.</summary>
     [HttpGet("{id:guid}")]
     public IActionResult ObtenerPorId(Guid id)
     {
-        var usuario = _usuarioService.ObtenerPorDni(ObtenerDni());
-        if (usuario == null)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden,
-                new { error = "Debe indicar un DNI válido para consultar una compra." });
-        }
-
-        var compra = _compraService.ObtenerPorId(id);
-        if (compra == null)
-        {
-            return NotFound(new { mensaje = $"Compra con ID '{id}' no encontrada." });
-        }
-
-        if (usuario.Rol != RolUsuario.Organizador &&
-            !compra.DniComprador.Equals(usuario.Dni, StringComparison.OrdinalIgnoreCase))
-        {
-            return StatusCode(StatusCodes.Status403Forbidden,
-                new { error = "No tiene permiso para consultar una compra de otro comprador." });
-        }
-
-        var compraDto = new CompraDto(
-                compra.DniComprador,
-                compra.IdEvento,
-                compra.IdModalidad,
-                compra.Cantidad
-            );
-
-        return Ok(compraDto);
+        return Ejecutar(() => Ok(_compraService.ObtenerPorId(id, ObtenerDni()).AResponse()));
     }
 
+    /// <summary>Compras de quien opera (X-Dni). El organizador recibe todas las compras del sistema.</summary>
     [HttpGet]
-    public IActionResult ObtenerCompras([FromQuery] string? dni)
+    public IActionResult ObtenerCompras()
     {
-        var usuario = _usuarioService.ObtenerPorDni(ObtenerDni());
-        if (usuario == null)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden,
-                new { error = "Debe indicar un DNI válido para consultar compras." });
-        }
-
-        string? dniSolicitado = string.IsNullOrWhiteSpace(dni) ? null : dni.Trim();
-
-        if (usuario.Rol != RolUsuario.Organizador &&
-            dniSolicitado != null &&
-            !dniSolicitado.Equals(usuario.Dni, StringComparison.OrdinalIgnoreCase))
-        {
-            return StatusCode(StatusCodes.Status403Forbidden,
-                new { error = "Un comprador solo puede consultar sus propias compras." });
-        }
-
-        if (usuario.Rol == RolUsuario.Organizador && dniSolicitado == null)
-        {
-            return Ok(_compraService.ObtenerTodas());
-        }
-
-        return Ok(_compraService.ObtenerPorDni(dniSolicitado ?? usuario.Dni));
+        return Ejecutar(() => Ok(_compraService.ObtenerComprasVisibles(ObtenerDni()).Select(c => c.AResponse()).ToList()));
     }
 }

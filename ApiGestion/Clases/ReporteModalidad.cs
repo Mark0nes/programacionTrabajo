@@ -3,7 +3,7 @@ namespace GestionEventos.Logica;
 public class ReporteModalidad
 {
     public Guid IdModalidad { get; private set; }
-    public string NombreModalidad { get; private set; } = string.Empty;
+    public string NombreModalidad { get; private set; }
     public decimal PrecioUnitario { get; private set; }
     public int CupoMaximo { get; private set; }
     public int CupoDisponible { get; private set; }

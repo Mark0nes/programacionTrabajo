@@ -2,8 +2,8 @@ namespace GestionEventos.Logica;
 
 public class ReporteComprador
 {
-    public string Dni { get; private set; } = string.Empty;
-    public string Nombre { get; private set; } = string.Empty;
+    public string Dni { get; private set; }
+    public string Nombre { get; private set; }
     public int CantidadEntradas { get; private set; }
     public decimal Total { get; private set; }
 

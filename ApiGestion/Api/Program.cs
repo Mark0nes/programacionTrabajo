@@ -1,5 +1,7 @@
+using GestionEventos.Api.DTOs;
 using GestionEventos.Data;
 using GestionEventos.Logica;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +11,19 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
+
+// Datos con formato inválido (Data Annotations de los Request): 400 con el motivo en "error",
+// el mismo formato que usan las reglas de negocio.
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = contexto =>
+    {
+        var mensajes = contexto.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Datos inválidos." : e.ErrorMessage);
+        return new BadRequestObjectResult(new ErrorResponse(string.Join(" ", mensajes)));
+    };
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>

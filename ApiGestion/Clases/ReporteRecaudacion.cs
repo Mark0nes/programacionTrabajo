@@ -1,13 +1,15 @@
 namespace GestionEventos.Logica;
+
 public class ReporteRecaudacion
 {
-    public decimal TotalGeneralRecaudado { get; private set; }
-    public int TotalGeneralEntradasVendidas { get; private set; }
     public List<ReporteEvento> Eventos { get; private set; } = new List<ReporteEvento>();
 
-    public void ActualizarTotales()
+    public decimal TotalGeneralRecaudado => Eventos.Sum(e => e.RecaudacionTotal);
+
+    public int TotalGeneralEntradasVendidas => Eventos.Sum(e => e.EntradasVendidas);
+
+    public void AgregarEvento(ReporteEvento evento)
     {
-        TotalGeneralRecaudado = Eventos.Sum(e => e.RecaudacionTotal);
-        TotalGeneralEntradasVendidas = Eventos.Sum(e => e.EntradasVendidas);
+        Eventos.Add(evento);
     }
 }

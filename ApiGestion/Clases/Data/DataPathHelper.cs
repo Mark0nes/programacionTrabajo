@@ -1,34 +1,43 @@
 namespace GestionEventos.Data;
 
+/// <summary>
+/// Resuelve la ruta (relativa al proyecto) de los archivos compartidos en la carpeta "data" de la raíz
+/// del repositorio. Sube por los directorios padres hasta encontrarla, así que funciona lanzando la API
+/// desde la raíz, desde la carpeta de la solución o desde la carpeta Api.
+/// </summary>
 public static class DataPathHelper
 {
     public static string ObtenerRuta(string nombreArchivo)
     {
-        // 1. Buscar carpeta "data" hacia arriba desde el directorio de trabajo actual
-        string? dir = Directory.GetCurrentDirectory();
-        while (!string.IsNullOrEmpty(dir))
+        string? carpetaData = BuscarCarpetaData(Directory.GetCurrentDirectory())
+                              ?? BuscarCarpetaData(AppContext.BaseDirectory);
+
+        if (carpetaData == null)
         {
-            string rutaCandidata = Path.Combine(dir, "data", nombreArchivo);
-            if (File.Exists(rutaCandidata) || Directory.Exists(Path.Combine(dir, "data")))
-            {
-                return Path.GetFullPath(rutaCandidata);
-            }
-            dir = Directory.GetParent(dir)?.FullName;
+            // Fallar fuerte: si cada API creara su propia carpeta "data" en silencio, dejarían de compartir datos.
+            throw new DirectoryNotFoundException(
+                "No se encontró la carpeta 'data' subiendo desde '" + Directory.GetCurrentDirectory() +
+                "'. Lance la API desde dentro del repositorio (ver README).");
         }
 
-        // 2. Buscar hacia arriba desde el directorio base de la aplicación (bin/.../net8.0)
-        dir = AppContext.BaseDirectory;
-        while (!string.IsNullOrEmpty(dir))
+        return Path.Combine(carpetaData, nombreArchivo);
+    }
+
+    private static string? BuscarCarpetaData(string directorioInicial)
+    {
+        DirectoryInfo? directorio = new DirectoryInfo(directorioInicial);
+
+        while (directorio != null)
         {
-            string rutaCandidata = Path.Combine(dir, "data", nombreArchivo);
-            if (File.Exists(rutaCandidata) || Directory.Exists(Path.Combine(dir, "data")))
+            string candidata = Path.Combine(directorio.FullName, "data");
+            if (Directory.Exists(candidata))
             {
-                return Path.GetFullPath(rutaCandidata);
+                return candidata;
             }
-            dir = Directory.GetParent(dir)?.FullName;
+
+            directorio = directorio.Parent;
         }
 
-        // 3. Fallback relativo
-        return Path.Combine("data", nombreArchivo);
+        return null;
     }
 }

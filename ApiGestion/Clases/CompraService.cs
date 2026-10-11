@@ -1,101 +1,110 @@
-namespace GestionEventos.Logica;
-
 using GestionEventos.Data;
 using GestionEventos.Logica.Excepciones;
+
+namespace GestionEventos.Logica;
 
 public class CompraService
 {
     private readonly CompraRepository _compraRepository;
     private readonly EventoRepository _eventoRepository;
     private readonly UsuarioService _usuarioService;
+    private readonly Func<DateTime> _ahora;
 
-    public CompraService(CompraRepository compraRepository, EventoRepository eventoRepository, UsuarioService usuarioService)
+    // "ahora" se inyecta para que los tests no dependan del reloj real.
+    public CompraService(CompraRepository compraRepository, EventoRepository eventoRepository, UsuarioService usuarioService, Func<DateTime>? ahora = null)
     {
         _compraRepository = compraRepository ?? throw new ArgumentNullException(nameof(compraRepository));
         _eventoRepository = eventoRepository ?? throw new ArgumentNullException(nameof(eventoRepository));
         _usuarioService = usuarioService ?? throw new ArgumentNullException(nameof(usuarioService));
+        _ahora = ahora ?? (() => DateTime.Now);
     }
 
-    public List<Compra> ObtenerTodas()
+    /// <summary>
+    /// Detalle de una compra. Un organizador puede ver cualquiera; un comprador solo las suyas.
+    /// </summary>
+    public Compra ObtenerPorId(Guid idCompra, string? dniSolicitante)
     {
-        return _compraRepository.ObtenerCompras();
-    }
+        var solicitante = _usuarioService.ValidarUsuario(dniSolicitante);
 
-    public Compra? ObtenerPorId(Guid idCompra)
-    {
-        return _compraRepository.ObtenerCompras().FirstOrDefault(c => c.Id == idCompra);
-    }
+        var compra = _compraRepository.ObtenerCompras().FirstOrDefault(c => c.Id == idCompra)
+            ?? throw new EntidadNoEncontradaException($"Compra con ID '{idCompra}' no encontrada.");
 
-    public List<Compra> ObtenerPorDni(string dni)
-    {
-        if (string.IsNullOrWhiteSpace(dni)) return new List<Compra>();
-        string dniLimpio = dni.Trim();
-        return _compraRepository.ObtenerCompras()
-            .Where(c => c.DniComprador.Equals(dniLimpio, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-    }
-
-    public Compra RealizarCompra(string dniComprador, Guid idEvento, Guid idModalidad, int cantidad)
-    {
-        if (cantidad <= 0)
+        if (!solicitante.EsOrganizador() && compra.DniComprador != solicitante.Dni)
         {
-            throw new ArgumentException("La cantidad de entradas debe ser mayor a cero.");
+            throw new AccesoDenegadoException("No tiene permiso para consultar una compra de otro comprador.");
         }
 
+        return compra;
+    }
+
+    /// <summary>
+    /// Compras visibles para quien opera: el organizador ve todas, el comprador solo las propias.
+    /// </summary>
+    public List<Compra> ObtenerComprasVisibles(string? dniSolicitante)
+    {
+        var solicitante = _usuarioService.ValidarUsuario(dniSolicitante);
+        var compras = _compraRepository.ObtenerCompras();
+
+        if (solicitante.EsOrganizador())
+        {
+            return compras;
+        }
+
+        return compras.Where(c => c.DniComprador == solicitante.Dni).ToList();
+    }
+
+    public Compra RealizarCompra(string? dniComprador, Guid idEvento, Guid idModalidad, int cantidad)
+    {
         var comprador = _usuarioService.ValidarRol(dniComprador, RolUsuario.Comprador);
 
-        var eventos = _eventoRepository.ObtenerEventos();
-        var evento = eventos.FirstOrDefault(e => e.Id == idEvento);
-
-        if (evento == null)
+        if (cantidad <= 0)
         {
-            throw new EntidadNoEncontradaException($"No se encontró el evento con ID '{idEvento}'.");
+            throw new ReglaNegocioException("La cantidad de entradas debe ser mayor a cero.");
         }
+
+        var eventos = _eventoRepository.ObtenerEventos();
+        var evento = eventos.FirstOrDefault(e => e.Id == idEvento)
+            ?? throw new EntidadNoEncontradaException($"No se encontró el evento con ID '{idEvento}'.");
+
+        DateTime ahora = _ahora();
 
         if (evento.Cancelado)
         {
             throw new ReglaNegocioException("No se pueden comprar entradas para un evento cancelado.");
         }
 
-        if (evento.Fecha < DateTime.Now)
+        if (evento.YaPaso(ahora))
         {
             throw new ReglaNegocioException("No se pueden comprar entradas para un evento cuya fecha ya pasó.");
         }
 
-        var modalidad = evento.ObtenerModalidadPorId(idModalidad);
-        if (modalidad == null)
-        {
-            throw new EntidadNoEncontradaException($"No se encontró la modalidad con ID '{idModalidad}' en el evento.");
-        }
+        var modalidad = evento.ObtenerModalidadPorId(idModalidad)
+            ?? throw new EntidadNoEncontradaException($"No se encontró la modalidad con ID '{idModalidad}' en el evento.");
 
-        if (modalidad.Cancelada)
-        {
-            throw new ReglaNegocioException($"La modalidad '{modalidad.Nombre}' ha sido cancelada.");
-        }
-
-        if (!modalidad.HayCupoDisponible(cantidad))
-        {
-            throw new CupoInsuficienteException($"No hay suficiente cupo disponible en '{modalidad.Nombre}'. Cupo restante: {modalidad.CupoDisponible}.");
-        }
-
+        // RegistrarVenta valida modalidad cancelada y cupo, y descuenta el cupo.
         modalidad.RegistrarVenta(cantidad);
 
         decimal total = modalidad.CalcularPrecio(cantidad);
-        decimal precioEfectivoPorEntrada = Math.Round(total / cantidad, 2);
+        decimal precioPorEntrada = Math.Round(total / cantidad, 2);
 
+        // Unicidad contra TODAS las compras existentes (y contra las que se generan en esta misma operación).
         var comprasExistentes = _compraRepository.ObtenerCompras();
         var codigosExistentes = new HashSet<string>(
             comprasExistentes.SelectMany(c => c.Entradas).Select(e => e.Codigo),
-            StringComparer.OrdinalIgnoreCase
-        );
+            StringComparer.OrdinalIgnoreCase);
 
-        var nuevaCompra = new Compra(comprador.Dni, evento.Id, evento.Nombre, modalidad.Id, modalidad.Nombre, cantidad, modalidad.Precio, total);
+        var nuevaCompra = new Compra(comprador.Dni, evento.Id, evento.Nombre, modalidad.Id, modalidad.Nombre, cantidad, modalidad.Precio, ahora);
 
+        decimal acumulado = 0m;
         for (int i = 0; i < cantidad; i++)
         {
-            string codigoUnico = GeneradorCodigoEntrada.GenerarCodigoUnico(codigosExistentes);
-            var entrada = new Entrada(codigoUnico, evento.Id, evento.Nombre, modalidad.Id, modalidad.Nombre, nuevaCompra.Id, precioEfectivoPorEntrada);
-            nuevaCompra.AgregarEntrada(entrada);
+            string codigo = GeneradorCodigoEntrada.GenerarCodigoUnico(codigosExistentes);
+
+            // La última entrada absorbe el redondeo, para que la suma de las entradas sea exactamente el total cobrado.
+            decimal precio = (i == cantidad - 1) ? total - acumulado : precioPorEntrada;
+            acumulado += precio;
+
+            nuevaCompra.AgregarEntrada(new Entrada(codigo, evento.Id, evento.Nombre, modalidad.Id, modalidad.Nombre, nuevaCompra.Id, precio));
         }
 
         _eventoRepository.GuardarEventos(eventos);
@@ -105,71 +114,57 @@ public class CompraService
         return nuevaCompra;
     }
 
-    public Entrada CancelarEntrada(string codigo, string dniSolicitante)
+    /// <summary>
+    /// Cancela una entrada individual y devuelve su lugar al cupo. Política con descuento por volumen:
+    /// la entrada cancelada se reintegra por lo que pagó (su precio efectivo) y las demás conservan el
+    /// precio que ya abonaron; el total de la compra baja en ese monto.
+    /// </summary>
+    public Entrada CancelarEntrada(string? codigo, string? dniSolicitante)
     {
+        var solicitante = _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Comprador);
+
         if (string.IsNullOrWhiteSpace(codigo))
         {
-            throw new ArgumentException("El código de la entrada es obligatorio.");
+            throw new ReglaNegocioException("El código de la entrada es obligatorio.");
         }
 
-        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Comprador);
-
+        string codigoBuscado = codigo.Trim().ToUpperInvariant();
         var compras = _compraRepository.ObtenerCompras();
-        Compra? compraContenedora = null;
-        Entrada? entradaEncontrada = null;
 
-        string codigoLimpio = codigo.Trim().ToUpperInvariant();
+        Compra? compraContenedora = compras.FirstOrDefault(c => c.Entradas.Any(e => e.Codigo == codigoBuscado));
+        Entrada? entrada = compraContenedora?.Entradas.First(e => e.Codigo == codigoBuscado);
 
-        foreach (var compra in compras)
+        if (compraContenedora == null || entrada == null)
         {
-            var ent = compra.Entradas.FirstOrDefault(e => e.Codigo.Equals(codigoLimpio, StringComparison.OrdinalIgnoreCase));
-            if (ent != null)
-            {
-                compraContenedora = compra;
-                entradaEncontrada = ent;
-                break;
-            }
+            throw new EntidadNoEncontradaException($"No se encontró ninguna entrada con el código '{codigoBuscado}'.");
         }
 
-        if (entradaEncontrada == null || compraContenedora == null)
-        {
-            throw new EntidadNoEncontradaException($"No se encontró ninguna entrada con el código '{codigo}'.");
-        }
-
-        if (!compraContenedora.DniComprador.Equals(dniSolicitante.Trim(), StringComparison.OrdinalIgnoreCase))
+        if (compraContenedora.DniComprador != solicitante.Dni)
         {
             throw new AccesoDenegadoException("No tiene permiso para cancelar una entrada que no le pertenece.");
         }
 
-        if (entradaEncontrada.Cancelada)
-        {
-            throw new ReglaNegocioException("La entrada ya se encuentra cancelada.");
-        }
-
-        if (entradaEncontrada.Usada)
-        {
-            throw new ReglaNegocioException("No se puede cancelar una entrada que ya fue utilizada para ingresar al evento.");
-        }
-
         var eventos = _eventoRepository.ObtenerEventos();
-        var evento = eventos.FirstOrDefault(e => e.Id == entradaEncontrada.IdEvento);
-        if (evento != null && evento.Fecha < DateTime.Now)
+        var evento = eventos.FirstOrDefault(e => e.Id == entrada.IdEvento);
+
+        if (!entrada.Cancelada && !entrada.Usada && evento != null && evento.YaPaso(_ahora()))
         {
-            throw new ReglaNegocioException("No se puede cancelar una entrada de un evento que ya finalizó o comenzó.");
+            throw new ReglaNegocioException("No se puede cancelar una entrada de un evento que ya comenzó o finalizó.");
         }
 
-        entradaEncontrada.CancelarEntrada();
+        // CancelarEntrada rechaza entradas ya canceladas o ya usadas (validadas en la puerta).
+        entrada.CancelarEntrada();
         compraContenedora.RecalcularTotal();
+
+        evento?.ObtenerModalidadPorId(entrada.IdModalidad)?.RestaurarCupo(1);
 
         if (evento != null)
         {
-            var modalidad = evento.ObtenerModalidadPorId(entradaEncontrada.IdModalidad);
-            modalidad?.RestaurarCupo(1);
             _eventoRepository.GuardarEventos(eventos);
         }
 
         _compraRepository.GuardarCompras(compras);
 
-        return entradaEncontrada;
+        return entrada;
     }
 }

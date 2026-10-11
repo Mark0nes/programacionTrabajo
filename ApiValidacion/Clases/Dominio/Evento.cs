@@ -1,22 +1,18 @@
 namespace ValidacionEventos.Dominio;
 
 using Newtonsoft.Json;
-using System.Text.Json.Serialization;
 
+/// <summary>
+/// Vista de solo lectura de un evento (eventos.json lo escribe Gestión): a Validación solo le interesa
+/// saber si fue cancelado. Nunca se vuelve a guardar el archivo de eventos desde esta API.
+/// </summary>
 public class Evento
 {
-    [JsonProperty]
-    [JsonInclude]
-    public Guid Id { get; private set; } = Guid.NewGuid();
-
-    public string Nombre { get; set; } = string.Empty;
-    public string Descripcion { get; set; } = string.Empty;
-    public DateTime Fecha { get; set; }
-    public string Lugar { get; set; } = string.Empty;
-
-    [JsonProperty]
-    [JsonInclude]
-    public bool Cancelado { get; private set; }
+    [JsonProperty] public Guid Id { get; private set; }
+    [JsonProperty] public string Nombre { get; private set; } = string.Empty;
+    [JsonProperty] public DateTime Fecha { get; private set; }
+    [JsonProperty] public string Lugar { get; private set; } = string.Empty;
+    [JsonProperty] public bool Cancelado { get; private set; }
 
     public Evento()
     {
