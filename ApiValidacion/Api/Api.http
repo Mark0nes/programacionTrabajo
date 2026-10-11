@@ -1,51 +1,60 @@
 @ApiValidacion_HostAddress = http://localhost:5002
 
-### 1. Validar una entrada válida (sin especificar evento)
+# El evento (idEvento) es OBLIGATORIO: así se garantiza que la entrada sea del evento en curso.
+# Los códigos de ejemplo corresponden a las compras de data/compras.json (evento "Test").
+# Una validación exitosa marca la entrada como usada: para repetir las pruebas hay que restaurar el archivo.
+
+@idEvento = d6f248fc-5e82-4d85-93b3-7f785faaca5a
+
+### 1. Validar una entrada válida (200, estado: Valida)
 POST {{ApiValidacion_HostAddress}}/api/validaciones
 Content-Type: application/json
 
 {
-  "codigo": "OMJ4YL"
+  "codigo": "BQGO59",
+  "idEvento": "{{idEvento}}"
 }
 
-### 2. Validar una entrada válida para un evento específico
+### 2. Validar entrada ya utilizada (400, estado: YaFueUsada)
 POST {{ApiValidacion_HostAddress}}/api/validaciones
 Content-Type: application/json
 
 {
-  "codigo": "8TMHAP",
-  "idEvento": "a1111111-1111-1111-1111-111111111111"
+  "codigo": "LI4ZWF",
+  "idEvento": "{{idEvento}}"
 }
 
-### 3. Validar entrada cancelada previamente por el comprador (Devuelve Estado: Cancelada)
+### 3. Validar entrada cancelada por el comprador (400, estado: Cancelada)
 POST {{ApiValidacion_HostAddress}}/api/validaciones
 Content-Type: application/json
 
 {
-  "codigo": "G4BXEZ"
+  "codigo": "DFW140",
+  "idEvento": "{{idEvento}}"
 }
 
-### 4. Validar entrada ya utilizada previamente (Devuelve Estado: YaFueUsada)
+### 4. Validar código inexistente (404, estado: NoExiste)
 POST {{ApiValidacion_HostAddress}}/api/validaciones
 Content-Type: application/json
 
 {
-  "codigo": "6Q3R1Z"
+  "codigo": "ZZZ999",
+  "idEvento": "{{idEvento}}"
 }
 
-### 5. Validar código inexistente en el sistema (Devuelve Estado: NoExiste)
+### 5. Validar entrada de otro evento (400, estado: EventoIncorrecto)
 POST {{ApiValidacion_HostAddress}}/api/validaciones
 Content-Type: application/json
 
 {
-  "codigo": "ZZZ999"
-}
-
-### 6. Validar entrada para otro evento distinto (Devuelve Estado: EventoIncorrecto)
-POST {{ApiValidacion_HostAddress}}/api/validaciones
-Content-Type: application/json
-
-{
-  "codigo": "8TMHAP",
+  "codigo": "5N5D1W",
   "idEvento": "a2222222-2222-2222-2222-222222222222"
+}
+
+### 6. Pedido sin evento (400, estado: DatosInvalidos)
+POST {{ApiValidacion_HostAddress}}/api/validaciones
+Content-Type: application/json
+
+{
+  "codigo": "5N5D1W"
 }

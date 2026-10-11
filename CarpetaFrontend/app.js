@@ -517,7 +517,6 @@ async function procesarCompra() {
 
   try {
     const payload = {
-      dniComprador: state.usuarioActivo.dni.toString(),
       idEvento: state.eventoSeleccionado.id,
       idModalidad: modId,
       cantidad: cantidad
