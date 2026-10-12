@@ -103,6 +103,11 @@ function seleccionarUsuario(usuario) {
     }
   }
 
+  const chkNoDisponibles = document.getElementById("chkIncluirNoDisponibles");
+  if (chkNoDisponibles && usuario.rol !== "Organizador" && chkNoDisponibles.checked) {
+    chkNoDisponibles.checked = false;
+    cargarEventos();
+  }
   if (document.getElementById("eventsGrid")) {
     renderizarCatalogo();
   }
@@ -116,6 +121,7 @@ function seleccionarUsuario(usuario) {
 
 function setupComun() {
   document.getElementById("btnRefrescarEventos")?.addEventListener("click", cargarEventos);
+  document.getElementById("chkIncluirNoDisponibles")?.addEventListener("change", cargarEventos);
 }
 
 async function cargarEventos() {
@@ -125,7 +131,11 @@ async function cargarEventos() {
   container.innerHTML = "<p class='loading-state'>Cargando eventos...</p>";
 
   try {
-    const res = await fetch(`${API_GESTION}/eventos`);
+    // Los cancelados y finalizados solo se piden (y el backend solo los entrega) para un organizador.
+    const esOrganizador = state.usuarioActivo?.rol === "Organizador";
+    const incluirTodos = esOrganizador && document.getElementById("chkIncluirNoDisponibles")?.checked;
+    const url = incluirTodos ? `${API_GESTION}/eventos?incluirNoDisponibles=true` : `${API_GESTION}/eventos`;
+    const res = await fetch(url, { headers: { "X-Dni": state.usuarioActivo?.dni?.toString() || "" } });
     if (!res.ok) throw new Error("Error al obtener eventos.");
     state.eventos = await res.json();
     renderizarCatalogo();
@@ -225,7 +235,7 @@ function renderizarCatalogo() {
         <a href="comprar-entrada.html?id=${ev.id}" class="btn ${ev.cancelado || esPasado ? 'btn-outline' : 'btn-primary'} btn-block">
           ${textoBoton}
         </a>
-        ${state.usuarioActivo?.rol === "Organizador" && !ev.cancelado ? `
+        ${state.usuarioActivo?.rol === "Organizador" && !ev.cancelado && !esPasado ? `
           <button type="button" class="btn btn-danger btn-sm btn-cancelar-card" data-id="${ev.id}" data-nombre="${ev.nombre}" title="Cancelar Evento">
             Cancelar
           </button>
@@ -288,7 +298,7 @@ function renderDetalleEvento(evento) {
 
   const btnCancEv = document.getElementById("btnCancelarEventoDetalle");
   if (btnCancEv) {
-    if (state.usuarioActivo?.rol === "Organizador" && !evento.cancelado) {
+    if (state.usuarioActivo?.rol === "Organizador" && !evento.cancelado && !esPasado) {
       btnCancEv.style.display = "inline-flex";
       btnCancEv.onclick = () => cancelarEvento(evento.id, evento.nombre);
     } else {
@@ -657,7 +667,7 @@ function renderizarDetalleCompra(compra) {
     }
 
     let btnCancelarHtml = "-";
-    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada) {
+    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada ) {
       btnCancelarHtml = `
         <button class="btn btn-danger btn-sm btn-cancelar-entrada" data-codigo="${entrada.codigo}">
           Cancelar Entrada
@@ -759,7 +769,7 @@ async function inicializarPuerta() {
       state.eventos = await res.json();
       const sel = document.getElementById("puertaEventoSelect");
       if (sel) {
-        sel.innerHTML = `<option value="">Cualquier evento (autodetectar)</option>`;
+        sel.innerHTML = `<option value="">Seleccione el evento a controlar</option>`;
         state.eventos.forEach(ev => {
           const opt = document.createElement("option");
           opt.value = ev.id;
@@ -949,11 +959,17 @@ async function inicializarGestionEventos() {
 
 async function cargarEventosGestion() {
   try {
-    const res = await fetch(`${API_GESTION}/eventos/gestion`, {
+    const res = await fetch(`${API_GESTION}/eventos`, {
       headers: { "X-Dni": state.usuarioActivo?.dni?.toString() || "" }
     });
     if (!res.ok) throw new Error("Error al obtener eventos para gestión.");
     state.eventos = await res.json();
+    if (state.eventos.length === 0) {
+      ["modalidadEventoSelect", "cancelarEventoSelect"].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.innerHTML = "<option value=''>No hay eventos cargados</option>";
+      });
+    }
 
     const selects = ["modalidadEventoSelect", "cancelarEventoSelect"];
     selects.forEach(id => {

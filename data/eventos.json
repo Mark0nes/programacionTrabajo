@@ -37,7 +37,7 @@
     "Lugar": "La Rural, Palermo, Buenos Aires",
     "Latitud": -34.5802,
     "Longitud": -58.4215,
-    "Cancelado": false,
+    "Cancelado": true,
     "Modalidades": [
       {
         "Id": "b3333333-3333-3333-3333-333333333333",
@@ -76,7 +76,7 @@
         "Beneficios": "Ubicación preferencial con excelente acústica y copa de bienvenida",
         "CupoMaximo": 30,
         "CupoDisponible": 30,
-        "Cancelada": false
+        "Cancelada": true
       },
       {
         "Id": "b6666666-6666-6666-6666-666666666666",
@@ -136,6 +136,66 @@
         "Beneficios": "fasfweafawef",
         "CupoMaximo": 10,
         "CupoDisponible": 2,
+        "Cancelada": false
+      }
+    ]
+  },
+  {
+    "Id": "24251e5a-9d11-4184-bf0f-3947643f433b",
+    "Nombre": "TEST",
+    "Descripcion": "testeo de toda la pag",
+    "Fecha": "2026-11-17T23:30:00Z",
+    "Lugar": "peñarol rafaela",
+    "Latitud": -34.6037,
+    "Longitud": -58.3816,
+    "Cancelado": false,
+    "Modalidades": [
+      {
+        "Id": "2a378d7d-7038-4d02-b899-17ed6e649c6b",
+        "Nombre": "test 1",
+        "Precio": 5550.0,
+        "Beneficios": "nada",
+        "CupoMaximo": 40,
+        "CupoDisponible": 0,
+        "Cancelada": false
+      },
+      {
+        "Id": "eeba239c-e24a-46b1-8eda-b02b48705082",
+        "Nombre": "test2",
+        "Precio": 2000.0,
+        "Beneficios": "todo",
+        "CupoMaximo": 10,
+        "CupoDisponible": 0,
+        "Cancelada": false
+      },
+      {
+        "Id": "ccb9e427-159a-41ed-846d-fcda0f42f17d",
+        "Nombre": "efasef",
+        "Precio": 5050.25,
+        "Beneficios": "",
+        "CupoMaximo": 25,
+        "CupoDisponible": 25,
+        "Cancelada": true
+      }
+    ]
+  },
+  {
+    "Id": "4f06dcbe-5ab8-4f2f-a1c7-a1354f2e1df5",
+    "Nombre": "dsafewf",
+    "Descripcion": "adfaesf",
+    "Fecha": "2026-11-19T06:11:00Z",
+    "Lugar": "plaza de mayo",
+    "Latitud": -34.608445,
+    "Longitud": -58.372179,
+    "Cancelado": true,
+    "Modalidades": [
+      {
+        "Id": "152648d3-26c2-4a77-948c-60e77dc151bf",
+        "Nombre": "egser",
+        "Precio": 1000.0,
+        "Beneficios": "aeafef",
+        "CupoMaximo": 20,
+        "CupoDisponible": 20,
         "Cancelada": false
       }
     ]

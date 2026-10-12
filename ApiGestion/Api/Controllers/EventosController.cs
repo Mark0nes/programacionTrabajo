@@ -23,9 +23,15 @@ public class EventosController : BaseApiController
     {
         return Ejecutar(() =>
         {
-            var eventos = incluirNoDisponibles ? _eventoService.ObtenerTodos() : _eventoService.ObtenerDisponibles();
+            var eventos = incluirNoDisponibles ? _eventoService.ObtenerParaGestion(ObtenerDni()) : _eventoService.ObtenerDisponibles();
             return Ok(eventos.Select(e => e.AResponse()).ToList());
         });
+    }
+
+    [HttpGet("gestion")]
+    public IActionResult ObtenerParaGestion()
+    {
+        return Ejecutar(() => Ok(_eventoService.ObtenerParaGestion(ObtenerDni()).Select(e => e.AResponse()).ToList()));
     }
 
     /// <summary>Detalle con sus modalidades. Existe para cualquier evento, también cancelado o pasado.</summary>

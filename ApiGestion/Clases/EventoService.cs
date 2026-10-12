@@ -24,6 +24,13 @@ public class EventoService
         return _eventoRepository.ObtenerEventos();
     }
 
+    /// <summary>Todos los eventos (también cancelados y pasados) para que el organizador los gestione.</summary>
+    public List<Evento> ObtenerParaGestion(string? dniSolicitante)
+    {
+        _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
+        return _eventoRepository.ObtenerEventos();
+    }
+
     /// <summary>Eventos que todavía se pueden vender: ni cancelados ni ya ocurridos (catálogo).</summary>
     public List<Evento> ObtenerDisponibles()
     {

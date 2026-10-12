@@ -212,6 +212,29 @@ public class EventoServiceTests : GestionTestBase
     }
 
     [Test]
+    public void ObtenerParaGestion_ComoOrganizador_IncluyeEventosCancelados()
+    {
+        var evento = EventoSvc.Crear(DniOrganizador, "Expo", "Desc", Ahora.AddDays(5), "Predio");
+        EventoSvc.Cancelar(DniOrganizador, evento.Id);
+
+        var todos = EventoSvc.ObtenerParaGestion(DniOrganizador);
+
+        Assert.That(todos.Any(e => e.Id == evento.Id), Is.True);
+    }
+
+    [Test]
+    public void ObtenerParaGestion_ComoComprador_LanzaAccesoDenegadoException()
+    {
+        Assert.Throws<AccesoDenegadoException>(() => EventoSvc.ObtenerParaGestion(DniComprador));
+    }
+
+    [Test]
+    public void ObtenerParaGestion_SinDni_LanzaAccesoDenegadoException()
+    {
+        Assert.Throws<AccesoDenegadoException>(() => EventoSvc.ObtenerParaGestion(null));
+    }
+
+    [Test]
     public void ObtenerPorId_EventoInexistente_LanzaEntidadNoEncontradaException()
     {
         Assert.Throws<EntidadNoEncontradaException>(() => EventoSvc.ObtenerPorId(Guid.NewGuid()));
