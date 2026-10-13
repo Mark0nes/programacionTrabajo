@@ -1,8 +1,9 @@
 # TP Integrador — Sistema de Venta y Validación de Entradas para Eventos
 
+**Repositorio:** `2026-prog1-tpfinal-Escultores`
 **Materia:** Programación 1 — UCSE
 **Equipo:** Escultores — Uriel Callebaut, Faustino Trivelli, Marcos Weppler
-**Video de la demo:** _(pegar acá el enlace; el video NO se sube al repositorio)_
+**Video de la demo:** _(pegar acá el enlace; el video NO se sube al repositorio, los binarios pesados no se versionan en Git)_
 
 Dos APIs REST (ASP.NET Core, .NET 8) que **comparten los mismos archivos JSON** (sin base de datos) y un frontend en HTML/CSS/JavaScript sin frameworks.
 
@@ -20,6 +21,10 @@ Los puertos salen de `Api/Properties/launchSettings.json` de cada API y coincide
 Requisitos: .NET 8 SDK y un navegador moderno.
 
 ```bash
+# 0) Clonar y entrar a la raíz del repo (todas las rutas de abajo son relativas a ella)
+git clone <url-del-repo>/2026-prog1-tpfinal-Escultores.git
+cd 2026-prog1-tpfinal-Escultores
+
 # 1) Tests (una vez por solución, desde la raíz del repo)
 dotnet test ApiGestion/Solucion.sln
 dotnet test ApiValidacion/Solucion.sln
@@ -40,6 +45,7 @@ dotnet run            # http://localhost:5002/swagger
 ## Estructura
 
 ```text
+2026-prog1-tpfinal-Escultores/
 ├── ApiGestion/
 │   ├── Api/        Controllers/, DTOs/ (Request, Response y GestionMapper), Program.cs
 │   ├── Clases/     Entidades, servicios (EventoService, CompraService, UsuarioService),
