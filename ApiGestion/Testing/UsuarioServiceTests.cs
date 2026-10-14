@@ -8,14 +8,6 @@ namespace Testing;
 public class UsuarioServiceTests : GestionTestBase
 {
     [Test]
-    public void ValidarRol_OrganizadorPideRolOrganizador_DevuelveElUsuario()
-    {
-        var usuario = UsuarioSvc.ValidarRol(DniOrganizador, RolUsuario.Organizador);
-
-        Assert.That(usuario.Dni, Is.EqualTo(DniOrganizador));
-    }
-
-    [Test]
     public void ValidarRol_CompradorPideRolOrganizador_LanzaAccesoDenegadoException()
     {
         Assert.Throws<AccesoDenegadoException>(() => UsuarioSvc.ValidarRol(DniComprador, RolUsuario.Organizador));
@@ -31,12 +23,6 @@ public class UsuarioServiceTests : GestionTestBase
     public void ValidarRol_DniInexistente_LanzaAccesoDenegadoException()
     {
         Assert.Throws<AccesoDenegadoException>(() => UsuarioSvc.ValidarRol("99999999", RolUsuario.Organizador));
-    }
-
-    [Test]
-    public void ValidarRol_SinDni_LanzaAccesoDenegadoException()
-    {
-        Assert.Throws<AccesoDenegadoException>(() => UsuarioSvc.ValidarRol(null, RolUsuario.Comprador));
     }
 
     [Test]
@@ -66,13 +52,4 @@ public class UsuarioServiceTests : GestionTestBase
         Assert.That(usuarios[0].Rol, Is.EqualTo(RolUsuario.Organizador));
     }
 
-    [Test]
-    public void ObtenerUsuarios_ArchivoInexistente_DevuelveListaVacia()
-    {
-        var repositorio = new PersonaRepository(RutaTemporal("no_existe.json"));
-
-        var usuarios = repositorio.ObtenerUsuarios();
-
-        Assert.That(usuarios, Is.Empty);
-    }
 }

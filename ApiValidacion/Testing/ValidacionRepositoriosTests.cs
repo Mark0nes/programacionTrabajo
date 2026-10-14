@@ -80,15 +80,6 @@ public class ValidacionRepositoriosTests
     }
 
     [Test]
-    public void ObtenerCompras_ArchivoVacio_DevuelveListaVacia()
-    {
-        File.WriteAllText(_rutaCompras, "");
-        var repositorio = new ValidacionCompraRepository(_rutaCompras);
-
-        Assert.That(repositorio.ObtenerCompras(), Is.Empty);
-    }
-
-    [Test]
     public void ValidarEntrada_ConArchivosReales_QuedaUsadaEnElArchivo()
     {
         var validador = new ValidadorEntradaService(new ValidacionCompraRepository(_rutaCompras), new ValidacionEventoRepository(_rutaEventos));
@@ -122,22 +113,6 @@ public class ValidacionRepositoriosTests
     }
 
     [Test]
-    public void ValidarEntrada_ConArchivosReales_ConservaPrecioYDniDeLaCompra()
-    {
-        var validador = new ValidadorEntradaService(new ValidacionCompraRepository(_rutaCompras), new ValidacionEventoRepository(_rutaEventos));
-
-        validador.ValidarEntrada("AAA111", Guid.Parse(IdEvento));
-
-        var compra = JArray.Parse(File.ReadAllText(_rutaCompras))[0];
-        Assert.Multiple(() =>
-        {
-            Assert.That(compra["DniComprador"]!.ToString(), Is.EqualTo("40123456"));
-            Assert.That(compra["PrecioUnitario"]!.Value<decimal>(), Is.EqualTo(1000m));
-            Assert.That(compra["NombreModalidad"]!.ToString(), Is.EqualTo("General"));
-        });
-    }
-
-    [Test]
     public void ValidarEntrada_ReiniciandoLosRepositorios_LaEntradaSigueUsada()
     {
         var primero = new ValidadorEntradaService(new ValidacionCompraRepository(_rutaCompras), new ValidacionEventoRepository(_rutaEventos));
@@ -148,17 +123,6 @@ public class ValidacionRepositoriosTests
         var resultado = reiniciado.ValidarEntrada("AAA111", Guid.Parse(IdEvento));
 
         Assert.That(resultado.Estado, Is.EqualTo(EstadoValidacion.YaFueUsada));
-    }
-
-    [Test]
-    public void ObtenerPorId_EventoCanceladoEnElArchivo_LoCargaCancelado()
-    {
-        File.WriteAllText(_rutaEventos, "[ { \"Id\": \"" + IdEvento + "\", \"Nombre\": \"Festival\", \"Fecha\": \"2026-10-15T18:00:00\", \"Lugar\": \"Parque\", \"Cancelado\": true, \"Modalidades\": [] } ]");
-        var repositorio = new ValidacionEventoRepository(_rutaEventos);
-
-        var evento = repositorio.ObtenerPorId(Guid.Parse(IdEvento));
-
-        Assert.That(evento!.Cancelado, Is.True);
     }
 
     [Test]

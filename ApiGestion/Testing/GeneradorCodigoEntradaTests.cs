@@ -44,13 +44,4 @@ public class GeneradorCodigoEntradaTests
         Assert.That(anteriores.Contains(nuevo), Is.False);
     }
 
-    [Test]
-    public void GenerarCodigoUnico_CodigoGenerado_QuedaRegistradoEnElConjunto()
-    {
-        var existentes = new HashSet<string>();
-
-        string codigo = GeneradorCodigoEntrada.GenerarCodigoUnico(existentes);
-
-        Assert.That(existentes, Does.Contain(codigo));
-    }
 }

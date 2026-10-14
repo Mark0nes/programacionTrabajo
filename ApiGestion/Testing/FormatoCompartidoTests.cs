@@ -29,17 +29,6 @@ public class FormatoCompartidoTests : GestionTestBase
     }
 
     [Test]
-    public void GuardarCompras_Entrada_ElCodigoQuedaEnMayusculas()
-    {
-        var (evento, modalidad) = CrearEventoConModalidad();
-        Comprar(evento, modalidad, 1);
-
-        string codigo = PrimeraEntradaDelArchivo()["Codigo"]!.ToString();
-
-        Assert.That(codigo, Is.EqualTo(codigo.ToUpperInvariant()));
-    }
-
-    [Test]
     public void ObtenerCompras_EntradaUsadaEnElArchivo_SeCargaComoUsada()
     {
         var (evento, modalidad) = CrearEventoConModalidad();

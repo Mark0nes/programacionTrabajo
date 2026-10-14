@@ -76,7 +76,7 @@ X-Dni: 40123456
   "cantidad": 5
 }
 
-### 11. Detalle de una compra (Comprador dueño u Organizador)
+### 11. Detalle de una compra (no exige rol; con X-Dni, solo el dueño u Organizador)
 GET {{ApiGestion_HostAddress}}/api/compras/93f68ec3-cfb2-4bcd-b63e-573334355190
 X-Dni: 40123456
 

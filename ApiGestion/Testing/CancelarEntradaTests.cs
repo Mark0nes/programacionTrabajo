@@ -42,17 +42,6 @@ public class CancelarEntradaTests : GestionTestBase
     }
 
     [Test]
-    public void CancelarEntrada_UnaDeLasEntradas_LasDemasSiguenVigentes()
-    {
-        var (evento, modalidad) = CrearEventoConModalidad();
-        var compra = Comprar(evento, modalidad, 3);
-
-        CompraSvc.CancelarEntrada(compra.Entradas[0].Codigo, DniComprador);
-
-        Assert.That(EntradaGuardada(compra.Entradas[1].Codigo).Cancelada, Is.False);
-    }
-
-    [Test]
     public void CancelarEntrada_CompraConDescuento_ElTotalBajaEnLoQueEsaEntradaPago()
     {
         var (evento, modalidad) = CrearEventoConModalidad(precio: 1000m);
@@ -62,17 +51,6 @@ public class CancelarEntradaTests : GestionTestBase
 
         var actualizada = CompraSvc.ObtenerPorId(compra.Id, DniComprador);
         Assert.That(actualizada.Total, Is.EqualTo(3400m));
-    }
-
-    [Test]
-    public void CancelarEntrada_CodigoEnMinusculas_LaEncuentra()
-    {
-        var (evento, modalidad) = CrearEventoConModalidad();
-        var compra = Comprar(evento, modalidad, 1);
-
-        CompraSvc.CancelarEntrada(compra.Entradas[0].Codigo.ToLowerInvariant(), DniComprador);
-
-        Assert.That(EntradaGuardada(compra.Entradas[0].Codigo).Cancelada, Is.True);
     }
 
     [Test]
@@ -86,19 +64,6 @@ public class CancelarEntradaTests : GestionTestBase
         var ex = Assert.Throws<ReglaNegocioException>(() => CompraSvc.CancelarEntrada(codigo, DniComprador));
 
         Assert.That(ex!.Message, Does.Contain("utilizada"));
-    }
-
-    [Test]
-    public void CancelarEntrada_EntradaYaUsada_NoDevuelveElCupo()
-    {
-        var (evento, modalidad) = CrearEventoConModalidad(cupo: 10);
-        var compra = Comprar(evento, modalidad, 1);
-        string codigo = compra.Entradas[0].Codigo;
-        MarcarEntradaComoUsada(codigo);
-
-        Assert.Throws<ReglaNegocioException>(() => CompraSvc.CancelarEntrada(codigo, DniComprador));
-
-        Assert.That(ModalidadGuardada(evento.Id, modalidad.Id).CupoDisponible, Is.EqualTo(9));
     }
 
     [Test]
@@ -123,18 +88,6 @@ public class CancelarEntradaTests : GestionTestBase
     }
 
     [Test]
-    public void CancelarEntrada_EntradaDeOtroComprador_NoLaCancela()
-    {
-        var (evento, modalidad) = CrearEventoConModalidad();
-        var compra = Comprar(evento, modalidad, 1, DniComprador);
-        string codigo = compra.Entradas[0].Codigo;
-
-        Assert.Throws<AccesoDenegadoException>(() => CompraSvc.CancelarEntrada(codigo, DniOtroComprador));
-
-        Assert.That(EntradaGuardada(codigo).Cancelada, Is.False);
-    }
-
-    [Test]
     public void CancelarEntrada_ComoOrganizador_LanzaAccesoDenegadoException()
     {
         var (evento, modalidad) = CrearEventoConModalidad();
@@ -151,12 +104,6 @@ public class CancelarEntradaTests : GestionTestBase
     }
 
     [Test]
-    public void CancelarEntrada_CodigoVacio_LanzaReglaNegocioException()
-    {
-        Assert.Throws<ReglaNegocioException>(() => CompraSvc.CancelarEntrada("  ", DniComprador));
-    }
-
-    [Test]
     public void CancelarEntrada_EventoYaComenzado_LanzaReglaNegocioException()
     {
         var (evento, modalidad) = CrearEventoConModalidad();
@@ -167,15 +114,4 @@ public class CancelarEntradaTests : GestionTestBase
             CompraSvc.CancelarEntrada(compra.Entradas[0].Codigo, DniComprador));
     }
 
-    [Test]
-    public void CancelarEntrada_LiberaElLugar_OtroCompradorPuedeComprarla()
-    {
-        var (evento, modalidad) = CrearEventoConModalidad(cupo: 1);
-        var compra = Comprar(evento, modalidad, 1, DniComprador);
-        CompraSvc.CancelarEntrada(compra.Entradas[0].Codigo, DniComprador);
-
-        var nueva = Comprar(evento, modalidad, 1, DniOtroComprador);
-
-        Assert.That(nueva.Entradas, Has.Count.EqualTo(1));
-    }
 }

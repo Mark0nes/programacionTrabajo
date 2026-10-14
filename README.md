@@ -1,4 +1,4 @@
-# TP Integrador — Sistema de Venta y Validación de Entradas para Eventos
+﻿# TP Integrador — Sistema de Venta y Validación de Entradas para Eventos
 
 **Repositorio:** `2026-prog1-tpfinal-Escultores`
 **Materia:** Programación 1 — UCSE
@@ -82,7 +82,7 @@ Errores: siempre `{ "error": "motivo" }` (400 regla de negocio o formato, 403 ac
 | POST | `/api/eventos/{id}/modalidades` | Organizador | Agrega una modalidad (201). |
 | PUT | `/api/eventos/{id}/modalidades/{idModalidad}/cancelar` | Organizador | Cancela una modalidad. |
 | POST | `/api/compras` | Comprador | Compra y genera las entradas individuales (201). El body lleva `idEvento`, `idModalidad`, `cantidad`. |
-| GET | `/api/compras/{id}` | Comprador dueño u Organizador | Detalle y estado de cada entrada. |
+| GET | `/api/compras/{id}` | — | Detalle y estado de cada entrada. No exige rol (como pide el enunciado); si se envía `X-Dni`, un comprador solo ve las suyas y el organizador cualquiera. |
 | GET | `/api/compras` | Cualquier usuario cargado | Compras de quien opera; el organizador recibe todas. |
 | DELETE | `/api/entradas/{codigo}` | Comprador dueño | (Promoción) Cancela una entrada no usada y devuelve el cupo. |
 | GET | `/api/reportes/recaudacion` | Organizador | Entradas vendidas y dinero por evento, modalidad y comprador. |
@@ -132,14 +132,23 @@ Cada operación **lee el archivo completo, modifica y guarda completo**, sin cop
 **Riesgo:** los `lock` protegen solo entre hilos de un mismo proceso, y Gestión y Validación son dos procesos. Si una venta y una validación leen-modifican-escriben `compras.json` al mismo tiempo, gana la última escritura y se puede perder el cambio de la otra (por ejemplo, una validación o una venta). Se reduce acortando la ventana lectura→escritura (así está hecho), y se resolvería con acceso exclusivo al archivo (`FileStream` con `FileShare.None` y reintento, o un `Mutex` con nombre) o con una base de datos con transacciones.
 
 ### Mapa (promoción)
-El frontend usa **Leaflet 1.9.4** con teselas de CARTO/OpenStreetMap (y Nominatim para buscar direcciones), no Google Maps. El evento guarda `Latitud` y `Longitud` además del `Lugar`: están en el dominio (`Evento`), se persisten en `eventos.json`, viajan en los DTOs y el frontend los usa para ubicar el marcador.
+El frontend muestra la ubicación con un **mapa de Google Maps incrustado (`iframe` con `maps.google.com/maps?q=lat,lng&output=embed`)**, sin librería de mapas ni API key, más un botón "Ver en Google Maps" que abre la ubicación en una pestaña nueva. Para buscar una dirección al crear un evento usa **Nominatim (OpenStreetMap)** y con el resultado actualiza el mapa. El evento guarda `Latitud` y `Longitud` además del `Lugar`: están en el dominio (`Evento`), se persisten en `eventos.json`, viajan en los DTOs y el frontend los usa para centrar el mapa. Si el evento no tiene coordenadas, se muestra una ubicación por defecto (Buenos Aires).
 
 ## Tests
 
-Se ejecutan con `dotnet test` en cada solución (nombres `Metodo_Escenario_Resultado`, un comportamiento por test, archivos temporales propios y reloj fijo).
+Se ejecutan con `dotnet test` en cada solución: **64 tests en Gestión y 17 en Validación**. Nombres `Metodo_Escenario_Resultado`, un comportamiento por test, archivos temporales propios y reloj fijo. Se dejó un test por regla de negocio y se sacaron los que repetían lo mismo desde otro ángulo.
 
-- **Gestión:** descuento (1, 4, 5, 10 entradas), cupo (agotado, exacto, otra modalidad), evento cancelado / pasado / inexistente, modalidad cancelada, roles (DNI inexistente, sin DNI, organizador comprando, comprador gestionando eventos o viendo el reporte), códigos (6 alfanuméricos, únicos dentro y entre compras), cancelación de entradas (propia, ajena, usada, ya cancelada, evento comenzado, devuelve cupo), reporte (antes y **después de cancelar**), formato compartido del JSON.
-- **Validación:** entrada válida (queda usada con fecha), segunda validación rechazada, cada entrada de una compra por separado, inexistente, código vacío/nulo, minúsculas, otro evento, sin evento, cancelada (estado `Cancelada`), evento cancelado, y lectura/reescritura del formato real de Gestión sin perder campos.
+- **Gestión:**
+  - Descuento: 4 entradas (sin descuento) y 5 (con 15%), directo en `Modalidad` y a través del servicio.
+  - Cupo: compra que supera el cupo, cupo agotado, y el cupo nunca supera el máximo al restaurar.
+  - Rechazos de compra: evento cancelado, evento pasado, evento inexistente y modalidad cancelada.
+  - Roles: DNI inexistente, organizador intentando comprar, comprador intentando crear o cancelar eventos o agregar modalidades, y comprador intentando ver el reporte.
+  - Códigos: 6 caracteres alfanuméricos, sin repetirse dentro de una compra ni entre compras distintas.
+  - Cancelación de entradas: propia, de otro comprador, usada en la puerta, ya cancelada, de un evento que ya comenzó, y total de la compra con descuento.
+  - Reporte de recaudación: con compra de 5 con descuento, **después de cancelar una entrada** (bajan la cantidad y el dinero), cancelando todas, y totales generales de varios eventos.
+  - Catálogo: no muestra eventos cancelados ni pasados.
+  - Formato del JSON compartido con Validación y lectura de usuarios.
+- **Validación:** entrada válida (queda usada), segunda validación rechazada, cada entrada de una compra por separado, código inexistente, código vacío, entrada de otro evento, sin evento, entrada cancelada (estado `Cancelada`), evento cancelado, y lectura/reescritura del formato real de Gestión sin perder campos ni la persistencia al reiniciar.
 
 ## Usuarios precargados (`data/usuarios.json`)
 

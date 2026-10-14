@@ -20,14 +20,21 @@ public class CompraService
     }
 
     /// <summary>
-    /// Detalle de una compra. Un organizador puede ver cualquiera; un comprador solo las suyas.
+    /// Detalle de una compra. El enunciado no exige rol para este endpoint, así que sin DNI se puede
+    /// consultar por ID (el GUID funciona como referencia de la compra). Si se envía un DNI, se valida:
+    /// un organizador puede ver cualquiera y un comprador solo las suyas.
     /// </summary>
     public Compra ObtenerPorId(Guid idCompra, string? dniSolicitante)
     {
-        var solicitante = _usuarioService.ValidarUsuario(dniSolicitante);
-
         var compra = _compraRepository.ObtenerCompras().FirstOrDefault(c => c.Id == idCompra)
             ?? throw new EntidadNoEncontradaException($"Compra con ID '{idCompra}' no encontrada.");
+
+        if (string.IsNullOrWhiteSpace(dniSolicitante))
+        {
+            return compra;
+        }
+
+        var solicitante = _usuarioService.ValidarUsuario(dniSolicitante);
 
         if (!solicitante.EsOrganizador() && compra.DniComprador != solicitante.Dni)
         {
