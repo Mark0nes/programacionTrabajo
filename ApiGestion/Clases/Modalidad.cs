@@ -1,14 +1,11 @@
-using GestionEventos.Logica.Excepciones;
+﻿using GestionEventos.Logica.Excepciones;
 using Newtonsoft.Json;
 
 namespace GestionEventos.Logica;
 
 public class Modalidad
 {
-    /// <summary>Cantidad de entradas desde la cual se aplica el descuento por volumen.</summary>
     public const int CantidadMinimaParaDescuento = 5;
-
-    /// <summary>Descuento por volumen (15%).</summary>
     public const decimal PorcentajeDescuento = 0.15m;
 
     [JsonProperty] public Guid Id { get; private set; } = Guid.NewGuid();
@@ -19,7 +16,6 @@ public class Modalidad
     [JsonProperty] public int CupoDisponible { get; private set; }
     [JsonProperty] public bool Cancelada { get; private set; }
 
-    // Constructor vacío: lo usa Newtonsoft para reconstruir la entidad desde el JSON.
     public Modalidad()
     {
     }
@@ -55,10 +51,6 @@ public class Modalidad
         Cancelada = true;
     }
 
-    public bool HayCupoDisponible(int cantidad = 1)
-    {
-        return !Cancelada && CupoDisponible >= cantidad;
-    }
 
     public void RegistrarVenta(int cantidad)
     {
@@ -90,11 +82,6 @@ public class Modalidad
         CupoDisponible = Math.Min(CupoMaximo, CupoDisponible + cantidad);
     }
 
-    /// <summary>
-    /// Total a pagar por <paramref name="cantidad"/> entradas. La regla de precio vive acá,
-    /// junto al dato del precio, para poder probarla sola: con 5 o más entradas de la misma
-    /// modalidad en una compra se descuenta el 15% del total.
-    /// </summary>
     public decimal CalcularPrecio(int cantidad)
     {
         if (cantidad <= 0)

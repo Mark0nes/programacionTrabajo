@@ -1,158 +1,208 @@
-﻿# TP Integrador — Sistema de Venta y Validación de Entradas para Eventos
+# TP Integrador — Sistema de Venta y Validación de Entradas para Eventos
 
-**Repositorio:** `2026-prog1-tpfinal-Escultores`
-**Materia:** Programación 1 — UCSE
-**Equipo:** Escultores — Uriel Callebaut, Faustino Trivelli, Marcos Weppler
-**Video de la demo:** _(pegar acá el enlace; el video NO se sube al repositorio, los binarios pesados no se versionan en Git)_
+- **Materia:** Programación 1 — UCSE
+- **Equipo:** Escultores
+- **Integrantes:** Uriel Callebaut, Faustino Trivelli, Marcos Weppler (en condición de promoción)
+- **Tecnologías:** C# / .NET 8, ASP.NET Core Web API, NUnit (83 pruebas unitarias en verde: 66 en Gestión y 17 en Validación), Persistencia JSON compartida en disco, HTML5, CSS3, JavaScript nativo (Vanilla JS multipágina), Google Maps (Embed Iframe) y geocodificación mediante Nominatim (OpenStreetMap).
 
-Dos APIs REST (ASP.NET Core, .NET 8) que **comparten los mismos archivos JSON** (sin base de datos) y un frontend en HTML/CSS/JavaScript sin frameworks.
+---
 
-| Componente | Carpeta | Puerto | Para qué sirve |
-|---|---|---|---|
-| API de Gestión | `ApiGestion/` | **5001** | Eventos, modalidades, compras, entradas, reporte. Swagger en `/swagger`. |
-| API de Validación | `ApiValidacion/` | **5002** | Validar entradas en la puerta el día del evento. |
-| Frontend | `CarpetaFrontend/` | — | Pantallas para organizador, comprador y control de acceso. |
-| Datos compartidos | `data/` | — | `usuarios.json`, `eventos.json`, `compras.json`. |
+## Descripción General
 
-Los puertos salen de `Api/Properties/launchSettings.json` de cada API y coinciden con las constantes `API_GESTION` / `API_VALIDACION` de `CarpetaFrontend/app.js`.
+El sistema sustituye la gestión manual en planillas de cálculo y grupos de mensajería por una solución integral compuesta por **dos APIs REST independientes que comparten la misma información persistida en disco (sin base de datos central)** y una **aplicación web frontend**:
 
-## Cómo levantarlo
+1. **API de Gestión (`ApiGestion` - Puerto 5001):**
+   - Catálogo y administración de eventos y sus modalidades de entrada.
+   - Venta de entradas asociadas al DNI del comprador, con cálculo automático de **descuento por volumen del 15% para compras de 5 o más entradas** de la misma modalidad.
+   - Generación de **entradas individuales con códigos únicos alfanuméricos de 6 dígitos** (garantía de cero colisiones).
+   - Reportes de recaudación y entradas vendidas por evento con desglose por modalidad y compradores.
+   - *(Promoción)* **Cancelación de entradas individuales** (`DELETE /api/entradas/{codigo}`) restaurando el cupo de la modalidad y recalculando el total vigente.
+   - Cancelación de modalidades y eventos completos por usuarios con rol Organizador.
+   - Endpoint optimizado para control de acceso en puerta (`GET /api/eventos?paraControlAcceso=true`).
+   - Documentación interactiva con **Swagger UI**.
 
-Requisitos: .NET 8 SDK y un navegador moderno.
+2. **API de Validación en Puerta (`ApiValidacion` - Puerto 5002):**
+   - Biblioteca de clases estándar (`Microsoft.NET.Sdk`) desacoplada con dominio, repositorios y servicios propios.
+   - Recibe el código de una entrada y el ID del evento actual; valida atómicamente si puede ingresar registrando su uso (`Usada = true`, fecha y hora) o rechazándola con causa explícita: inexistente, ya usada, corresponde a otro evento o evento cancelado.
+   - Sincronización inmediata sobre los archivos JSON compartidos en disco.
+   - Documentación interactiva con **Swagger UI**.
 
-```bash
-# 0) Clonar y entrar a la raíz del repo (todas las rutas de abajo son relativas a ella)
-git clone <url-del-repo>/2026-prog1-tpfinal-Escultores.git
-cd 2026-prog1-tpfinal-Escultores
+3. **Frontend Web (`CarpetaFrontend`):**
+   - Construido íntegramente con HTML5, CSS3 y JavaScript nativo sin dependencias de frameworks externos.
+   - **Arquitectura multipágina:** Seis pantallas HTML independientes comunicadas mediante parámetros de URL (`?id=`):
+     - `index.html`: Catálogo de eventos disponibles con filtros por rol y estado.
+     - `comprar-entrada.html`: Detalle del evento, mapa de Google Maps, selección de modalidad y panel de compra exclusivo para compradores.
+     - `control-acceso.html`: Pantalla de puerta con selector obligatorio de eventos del día, semáforo visual grande (Verde para autorizado, Rojo para rechazado y Ámbar para fallo de comunicación de red) e historial de la sesión.
+     - `consultar-compra.html`: Búsqueda de compra, detalle de entradas, estados (Disponible, Usada con fecha/hora, Cancelada), desglose de Total Vigente y monto reintegrado por cancelaciones, y cancelación de entradas.
+     - `gestion-eventos.html`: Panel para que organizadores creen eventos con geocodificación mediante Nominatim, agreguen modalidades y cancelen modalidades existentes.
+     - `reporte-recaudacion.html`: Métricas de recaudación general y tabla detallada por evento con desglose por modalidad y compradores.
+   - Selector dinámico de usuario con persistencia en `localStorage`, header `X-Dni` en las peticiones y protección estricta de rutas por rol (**Organizador** vs. **Comprador**).
+   - **Google Maps:** Integración mediante iframe oficial sin requerir API key ni exponer credenciales (`maps.google.com/maps?q=lat,lng&output=embed`). Si el evento no posee coordenadas exactas registradas, el sistema muestra un panel indicando "Ubicación geográfica no disponible" y permite buscar el nombre del lugar directamente en Google Maps.
 
-# 1) Tests (una vez por solución, desde la raíz del repo)
-dotnet test ApiGestion/Solucion.sln
-dotnet test ApiValidacion/Solucion.sln
+---
 
-# 2) API de Gestión (terminal 1)
-cd ApiGestion/Api
-dotnet run            # http://localhost:5001/swagger
-
-# 3) API de Validación (terminal 2)
-cd ApiValidacion/Api
-dotnet run            # http://localhost:5002/swagger
-
-# 4) Frontend: abrir CarpetaFrontend/index.html (o servirlo con Live Server)
-```
-
-**Desde qué carpeta se lanzan:** las rutas son relativas y se resuelven con `DataPathHelper`, que sube por los directorios padres hasta encontrar la carpeta `data/` de la raíz del repo. Por eso funciona lanzando desde la raíz, desde `ApiGestion/` o desde `ApiGestion/Api/`. Si no la encuentra, **falla con un mensaje claro** en vez de crear otra carpeta en silencio (si cada API usara su propia carpeta `data`, dejarían de compartir datos).
-
-## Estructura
+## Estructura del Repositorio
 
 ```text
-2026-prog1-tpfinal-Escultores/
-├── ApiGestion/
-│   ├── Api/        Controllers/, DTOs/ (Request, Response y GestionMapper), Program.cs
-│   ├── Clases/     Entidades, servicios (EventoService, CompraService, UsuarioService),
-│   │               Excepciones/, Data/ (repositorios JSON y DataPathHelper)
-│   └── Testing/    Tests NUnit de la lógica de Gestión
-├── ApiValidacion/
-│   ├── Api/        Controllers/ValidacionesController, DTOs/, Program.cs
-│   ├── Clases/     Dominio/ (Compra, Entrada, Evento), Data/ (repositorios), ValidadorEntradaService
-│   └── Testing/    Tests NUnit de la lógica de Validación
-├── CarpetaFrontend/  index.html, páginas por pantalla, app.js, styles.css
-└── data/             usuarios.json, eventos.json, compras.json
+.
+├── ApiGestion/                 # Solución 1: API de Gestión y Ventas
+│   ├── Api/                    # Web API ASP.NET Core (.NET 8, Swagger en :5001)
+│   ├── Clases/                 # Lógica de dominio, repositorios, servicios
+│   ├── Testing/                # Pruebas unitarias NUnit de ApiGestion (66 tests en verde)
+│   └── Solucion.sln            # Solución Visual Studio de Gestión
+│
+├── ApiValidacion/              # Solución 2: API de Validación en Puerta
+│   ├── Api/                    # Web API ASP.NET Core (.NET 8, Swagger en :5002)
+│   ├── Clases/                 # Biblioteca de clases .NET estándar (dominio y repositorios)
+│   ├── Testing/                # Pruebas unitarias NUnit de ApiValidacion (17 tests en verde)
+│   └── Solucion.sln            # Solución Visual Studio de Validación
+│
+├── CarpetaFrontend/            # Frontend Web (HTML5/CSS3/Vanilla JS)
+│   ├── index.html              # Catálogo de eventos
+│   ├── comprar-entrada.html    # Detalle de evento, mapa y compra
+│   ├── control-acceso.html     # Validación de entradas en puerta
+│   ├── consultar-compra.html   # Consulta de compra y cancelación de entradas
+│   ├── gestion-eventos.html    # Alta de eventos y modalidades (Organizador)
+│   ├── reporte-recaudacion.html# Reporte de ingresos y compradores (Organizador)
+│   ├── styles.css              # Hoja de estilos responsiva
+│   └── app.js                  # Lógica cliente y conexión con APIs
+│
+├── data/                       # Almacenamiento compartido en disco
+│   ├── usuarios.json           # 10 usuarios precargados (2 Organizadores, 8 Compradores)
+│   ├── eventos.json            # Eventos, coordenadas y modalidades
+│   └── compras.json            # Compras y entradas individuales generadas
+│
+└── README.md                   # Documentación técnica del proyecto
 ```
 
-Dependencias: `Api → Clases` y `Testing → Clases`. Los controllers y los DTOs viven en `Api`; `Clases` es una biblioteca de clases común en las dos soluciones (no es un proyecto Web) y no conoce HTTP.
+---
 
-## Identificación del usuario y roles
+## Cómo Ejecutar el Proyecto
 
-No hay login. Quien opera se indica con el **DNI en el header `X-Dni`** (alternativa para pruebas desde el navegador: `?dni=`). Es el **único criterio en todos los endpoints**; ningún endpoint lo toma del body. El servicio busca el DNI en `usuarios.json` y compara el rol; si falta, no existe o el rol no corresponde → **403** con el motivo en el body. El frontend, además, oculta las acciones que el rol no puede hacer.
+### Requisitos Previos
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) instalado.
+- Navegador web moderno (Chrome, Edge, Firefox).
 
-## Endpoints
+---
 
-Errores: siempre `{ "error": "motivo" }` (400 regla de negocio o formato, 403 acceso, 404 no existe).
+### Paso 1: Ejecutar las Pruebas Unitarias (83 tests en verde)
+
+```bash
+dotnet test ApiGestion/Solucion.sln
+dotnet test ApiValidacion/Solucion.sln
+```
+
+---
+
+### Paso 2: Iniciar las APIs
+
+Abra dos consolas separadas en la raíz del repositorio:
+
+#### Terminal 1 — API de Gestión (Puerto 5001):
+```bash
+cd ApiGestion/Api
+dotnet run
+```
+> Swagger UI: **http://localhost:5001/swagger**
+
+#### Terminal 2 — API de Validación (Puerto 5002):
+```bash
+cd ApiValidacion/Api
+dotnet run
+```
+> Swagger UI: **http://localhost:5002/swagger**
+
+---
+
+### Paso 3: Abrir el Frontend
+
+Existen dos alternativas sencillas para visualizar la interfaz:
+
+1. **A través de la propia API de Gestión (Recomendado):**
+   Con la API de Gestión ejecutándose, acceda directamente en el navegador a:
+   **http://localhost:5001**
+
+2. **A través de un servidor local (ej. Live Server de VS Code):**
+   Abra la carpeta del proyecto en VS Code y ejecute Live Server sobre `CarpetaFrontend/index.html` (o abra el archivo en el navegador).
+
+---
+
+## Guía para la Demo del Coloquio
+
+Para replicar el circuito completo y verificar todas las funcionalidades:
+
+1. **Iniciar como Comprador:**
+   - Seleccionar en el desplegable superior a **Sofía Gómez (Comprador)**.
+   - En el catálogo, ingresar al evento `"Conferencia de Tecnología e IA 2026"`.
+   - Seleccionar una modalidad (ej. "Pase Estudiante"), indicar 5 entradas para verificar el **15% de descuento** en tiempo real y hacer clic en **Comprar Entradas**.
+   - Guardar los códigos generados en el modal de confirmación.
+
+2. **Validar en Puerta (Control de Acceso):**
+   - Cambiar de usuario a **Lucía Fernández (Organizador)**.
+   - Ir a la pestaña **Control de Acceso**.
+   - Seleccionar el evento correspondiente en el desplegable.
+   - Ingresar uno de los códigos comprados y validar: se observará la tarjeta en **Verde (Ingreso Permitido)**.
+   - Reingresar el mismo código: se observará la tarjeta en **Rojo (Entrada Rechazada)** con el motivo *"La entrada ya fue utilizada"*.
+
+3. **Consultar Compra y Cancelar Entrada:**
+   - Volver a seleccionar a **Sofía Gómez (Comprador)** e ir a **Consultar Compra**.
+   - Ingresar el ID de la compra (o utilizar los botones de compras rápidas).
+   - Verificar que la entrada validada figura en estado `"Usada"` con su fecha y hora.
+   - En una entrada que continúe en estado `"Disponible"`, hacer clic en **Cancelar Entrada**.
+   - Confirmar: la entrada pasará a `"Cancelada"`, el cupo del evento se restablecerá y el resumen mostrará el **Total Vigente** junto con el monto **Reintegrado por cancelaciones**.
+
+4. **Gestión y Reporte (Organizador):**
+   - Cambiar a **Lucía Fernández (Organizador)**.
+   - En **Gestión de Eventos**, dar de alta un nuevo evento ingresando su nombre y dirección, pulsar **Buscar en Mapa** para geolocalizarlo en el mapa interactivo y guardarlo.
+   - Agregar una modalidad al evento creado.
+   - En **Reporte de Recaudación**, comprobar las métricas generales de recaudación, las entradas vigentes vendidas y el listado de compradores.
+
+---
+
+## Usuarios Precargados (`usuarios.json`)
+
+| DNI | Nombre | Rol | Acciones Permitidas |
+|---|---|---|---|
+| **30111222** | Lucía Fernández | **Organizador** | Crear/editar/cancelar eventos y modalidades, ver reporte de recaudación, puerta. |
+| **29888777** | Martín Aguirre | **Organizador** | Crear/editar/cancelar eventos y modalidades, ver reporte de recaudación, puerta. |
+| **40123456** | Sofía Gómez | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
+| **38456789** | Nicolás Pereyra | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
+| **41234567** | Valentina Ríos | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
+| **37654321** | Tomás Ibáñez | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
+| **42345678** | Camila Suárez | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
+| **39876543** | Agustín Molina | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
+| **43456789** | Julieta Torres | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
+| **36765432** | Bruno Acosta | **Comprador** | Comprar entradas, ver sus compras, cancelar entradas no usadas. |
+
+---
+
+## Endpoints de las APIs REST
 
 ### API de Gestión (`http://localhost:5001`)
 
-| Método | Endpoint | Rol | Descripción |
+| Método | Endpoint | Rol Requerido | Descripción |
 |---|---|---|---|
-| GET | `/api/usuarios` | — | Usuarios precargados (un solo campo `dni`). |
-| GET | `/api/eventos` | — | Catálogo: solo eventos **disponibles** (no cancelados y futuros). Con `?incluirNoDisponibles=true` también cancelados y pasados. |
-| GET | `/api/eventos/{id}` | — | Detalle con modalidades (existe para cualquier evento). |
-| POST | `/api/eventos` | Organizador | Crea un evento (201). |
-| PUT | `/api/eventos/{id}` | Organizador | Edita un evento no cancelado. |
-| PUT | `/api/eventos/{id}/cancelar` | Organizador | Cancela el evento. |
-| POST | `/api/eventos/{id}/modalidades` | Organizador | Agrega una modalidad (201). |
-| PUT | `/api/eventos/{id}/modalidades/{idModalidad}/cancelar` | Organizador | Cancela una modalidad. |
-| POST | `/api/compras` | Comprador | Compra y genera las entradas individuales (201). El body lleva `idEvento`, `idModalidad`, `cantidad`. |
-| GET | `/api/compras/{id}` | — | Detalle y estado de cada entrada. No exige rol (como pide el enunciado); si se envía `X-Dni`, un comprador solo ve las suyas y el organizador cualquiera. |
-| GET | `/api/compras` | Cualquier usuario cargado | Compras de quien opera; el organizador recibe todas. |
-| DELETE | `/api/entradas/{codigo}` | Comprador dueño | (Promoción) Cancela una entrada no usada y devuelve el cupo. |
-| GET | `/api/reportes/recaudacion` | Organizador | Entradas vendidas y dinero por evento, modalidad y comprador. |
+| `GET` | `/api/usuarios` | — | Lista todos los usuarios precargados. |
+| `GET` | `/api/eventos` | — | Lista eventos disponibles (`?paraControlAcceso=true` para puerta, `?incluirNoDisponibles=true` para organizador). |
+| `GET` | `/api/eventos/{id}` | — | Detalle de un evento y sus modalidades. |
+| `POST` | `/api/eventos` | **Organizador** (`X-Dni`) | Crea un nuevo evento con coordenadas y dirección. |
+| `PUT` | `/api/eventos/{id}` | **Organizador** (`X-Dni`) | Modifica los datos de un evento. |
+| `PUT` | `/api/eventos/{id}/cancelar` | **Organizador** (`X-Dni`) | Cancela un evento completo. |
+| `POST` | `/api/eventos/{id}/modalidades` | **Organizador** (`X-Dni`) | Agrega una modalidad con precio, cupo y beneficios. |
+| `PUT` | `/api/eventos/{id}/modalidades/{idModalidad}/cancelar` | **Organizador** (`X-Dni`) | Cancela una modalidad específica. |
+| `POST` | `/api/compras` | **Comprador** (`X-Dni`) | Registra compra, descuenta cupo y genera entradas individuales. |
+| `GET` | `/api/compras/{id}` | — | Consulta detalle de compra y estado de cada entrada. |
+| `GET` | `/api/compras?dni={dni}` | — | Lista compras asociadas al DNI indicado. |
+| `GET` | `/api/reportes/recaudacion` | **Organizador** (`X-Dni`) | Reporte de recaudación y entradas vendidas por evento. |
+| `DELETE` | `/api/entradas/{codigo}` | **Comprador** (`X-Dni`) | *(Promoción)* Cancela una entrada no usada y devuelve el cupo. |
 
 ### API de Validación (`http://localhost:5002`)
 
-`POST /api/validaciones` con `{ "codigo": "ABC123", "idEvento": "<guid>" }`. **El evento es obligatorio.**
-
-| Resultado | HTTP | `estado` |
+| Método | Endpoint | Descripción |
 |---|---|---|
-| Ingreso autorizado (queda usada, con fecha y hora) | 200 | `Valida` |
-| El código no existe | 404 | `NoExiste` |
-| La entrada es de otro evento (o no se envió evento) | 400 | `EventoIncorrecto` |
-| La entrada fue cancelada por el comprador | 400 | `Cancelada` |
-| El evento fue cancelado | 400 | `EventoCancelado` |
-| La entrada ya ingresó | 400 | `YaFueUsada` |
-| Falta el código o el evento | 400 | `DatosInvalidos` |
+| `POST` | `/api/validaciones` | Recibe `{ "codigo": "...", "idEvento": "..." }`. Valida y marca como usada la entrada o rechaza con motivo exacto. |
 
-## Decisiones de diseño (para el coloquio)
+---
 
-**Dónde vive cada regla.** El descuento por volumen (5 o más entradas de la misma modalidad = 15%) lo calcula `Modalidad.CalcularPrecio`, junto al dato del precio, y se prueba sola. El cupo lo maneja `Modalidad.RegistrarVenta/RestaurarCupo`. Los permisos por rol y las reglas de compra están en los servicios, no en los controllers: el controller solo llama al servicio y traduce las excepciones del dominio a 400/403/404 (`BaseApiController.Ejecutar`).
-
-**Entrada individual.** Cada `Entrada` guarda su código, el evento y la modalidad a los que pertenece, si fue usada (con fecha), si fue cancelada y el **precio que realmente pagó**. Por eso se valida sola, sin la compra.
-
-**Códigos.** 6 caracteres `A-Z0-9` con `RandomNumberGenerator`; el servicio carga en un `HashSet` los códigos de **todas** las compras y el generador reintenta hasta encontrar uno libre, así que no se repiten entre compras ni dentro de la misma.
-
-**Encapsulamiento.** El estado de negocio (`CupoDisponible`, `Usada`, `Cancelada`, `Total`) tiene `private set` y solo cambia por métodos que validan. Cada propiedad con `private set` lleva `[JsonProperty]`: sin ese atributo Newtonsoft no puede asignarla al leer el JSON y la entidad se reconstruye vacía (hay tests que lo verifican).
-
-**Excepciones propias.** `AccesoDenegadoException`, `ReglaNegocioException` (y su subtipo `CupoInsuficienteException`) y `EntidadNoEncontradaException`, todas derivadas de `DominioException`, que hereda de `Exception`. No se usan excepciones del framework con otro significado.
-
-**Reloj inyectable.** Los servicios reciben `Func<DateTime>` (por defecto `DateTime.Now`) para que los tests no dependan de la hora real.
-
-### Cancelar una entrada de una compra con descuento
-Se compran 5 entradas de $1.000 con descuento: total $4.250, **$850 cada una** (la última absorbe cualquier diferencia de redondeo, así la suma de las entradas es exactamente lo cobrado). Si se cancela una:
-- La entrada cancelada se reintegra por lo que pagó ($850) y vuelve su lugar al cupo.
-- Las otras 4 **conservan el precio que ya abonaron**: la compra se hizo bajo las condiciones vigentes al pagar; recalcularlas sin descuento le cobraría de más al comprador sin su consentimiento.
-- `Compra.Total` pasa a ser la suma de las entradas no canceladas: $3.400.
-- **Reporte de recaudación:** cuenta solo entradas no canceladas y suma su precio efectivo, de modo que cantidad y dinero bajan juntos (4 entradas, $3.400). La cantidad y el dinero del evento salen de la misma lista de compradores, por lo que no pueden discrepar.
-- Una entrada **ya validada en la puerta no se puede cancelar**, ni tampoco las de un evento que ya comenzó.
-
-### Catálogo de eventos
-`GET /api/eventos` devuelve solo lo que se puede comprar. Justificación: una persona no puede comprar un evento cancelado o pasado, así que no tiene sentido ofrecérselo. El detalle (`/api/eventos/{id}`) sí existe para cualquier evento, y el reporte del organizador incluye todos.
-
-### Persistencia compartida y concurrencia
-Cada operación **lee el archivo completo, modifica y guarda completo**, sin copia en memoria, por eso una compra hecha en Gestión se valida al instante en Validación. La API de Validación tiene sus propias clases de dominio (`Compra`, `Entrada`, `Evento`) y repositorios; sus clases modelan **todas** las propiedades que escribe Gestión, porque al reescribir el archivo una propiedad no modelada se borraría (un test lo comprueba).
-
-**Riesgo:** los `lock` protegen solo entre hilos de un mismo proceso, y Gestión y Validación son dos procesos. Si una venta y una validación leen-modifican-escriben `compras.json` al mismo tiempo, gana la última escritura y se puede perder el cambio de la otra (por ejemplo, una validación o una venta). Se reduce acortando la ventana lectura→escritura (así está hecho), y se resolvería con acceso exclusivo al archivo (`FileStream` con `FileShare.None` y reintento, o un `Mutex` con nombre) o con una base de datos con transacciones.
-
-### Mapa (promoción)
-El frontend muestra la ubicación con un **mapa de Google Maps incrustado (`iframe` con `maps.google.com/maps?q=lat,lng&output=embed`)**, sin librería de mapas ni API key, más un botón "Ver en Google Maps" que abre la ubicación en una pestaña nueva. Para buscar una dirección al crear un evento usa **Nominatim (OpenStreetMap)** y con el resultado actualiza el mapa. El evento guarda `Latitud` y `Longitud` además del `Lugar`: están en el dominio (`Evento`), se persisten en `eventos.json`, viajan en los DTOs y el frontend los usa para centrar el mapa. Si el evento no tiene coordenadas, se muestra una ubicación por defecto (Buenos Aires).
-
-## Tests
-
-Se ejecutan con `dotnet test` en cada solución: **64 tests en Gestión y 17 en Validación**. Nombres `Metodo_Escenario_Resultado`, un comportamiento por test, archivos temporales propios y reloj fijo. Se dejó un test por regla de negocio y se sacaron los que repetían lo mismo desde otro ángulo.
-
-- **Gestión:**
-  - Descuento: 4 entradas (sin descuento) y 5 (con 15%), directo en `Modalidad` y a través del servicio.
-  - Cupo: compra que supera el cupo, cupo agotado, y el cupo nunca supera el máximo al restaurar.
-  - Rechazos de compra: evento cancelado, evento pasado, evento inexistente y modalidad cancelada.
-  - Roles: DNI inexistente, organizador intentando comprar, comprador intentando crear o cancelar eventos o agregar modalidades, y comprador intentando ver el reporte.
-  - Códigos: 6 caracteres alfanuméricos, sin repetirse dentro de una compra ni entre compras distintas.
-  - Cancelación de entradas: propia, de otro comprador, usada en la puerta, ya cancelada, de un evento que ya comenzó, y total de la compra con descuento.
-  - Reporte de recaudación: con compra de 5 con descuento, **después de cancelar una entrada** (bajan la cantidad y el dinero), cancelando todas, y totales generales de varios eventos.
-  - Catálogo: no muestra eventos cancelados ni pasados.
-  - Formato del JSON compartido con Validación y lectura de usuarios.
-- **Validación:** entrada válida (queda usada), segunda validación rechazada, cada entrada de una compra por separado, código inexistente, código vacío, entrada de otro evento, sin evento, entrada cancelada (estado `Cancelada`), evento cancelado, y lectura/reescritura del formato real de Gestión sin perder campos ni la persistencia al reiniciar.
-
-## Usuarios precargados (`data/usuarios.json`)
-
-2 organizadores (30111222 Lucía Fernández, 29888777 Martín Aguirre) y 8 compradores (40123456, 38456789, 41234567, 37654321, 42345678, 39876543, 43456789, 36765432), según el anexo del enunciado.
-
-## Nota para la demo
-`data/eventos.json` incluye "Noche de Jazz & Blues" con fecha ya pasada (sirve para mostrar el rechazo de compra) y eventos de prueba ("Test", "Devil God Contest"). Antes de grabar el video conviene usar un evento futuro (por ejemplo "Festival Primavera Sound 2026", 15/10/2026, o crear uno nuevo).
+## Link al Video Demo
+- **Enlace:** [https://drive.google.com/file/d/1-2FuJ2cG8K09oveOL-iZXee2Gz38XIQQ/view?usp=drive_link](https://drive.google.com/file/d/1-2FuJ2cG8K09oveOL-iZXee2Gz38XIQQ/view?usp=drive_link)

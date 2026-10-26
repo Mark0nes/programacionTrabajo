@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -46,7 +46,7 @@
     </nav>
   </header>
 
-  <main>
+  <main class="role-organizador-only">
     <section class="section-view">
       <div class="card" style="margin-bottom: 2rem;">
         <div class="card-header">
@@ -60,7 +60,7 @@
           <div class="form-group">
             <label for="puertaEventoSelect">Evento a controlar:</label>
             <select id="puertaEventoSelect" class="form-control">
-              <option value="">Seleccione el evento a controlar</option>
+              <option value="">Cualquier evento (autodetectar)</option>
             </select>
             <small style="color: var(--slate-500); display: block; margin-top: 0.25rem;">
               Opcional. Si seleccionas un evento puntual, se rechazaran entradas pertenecientes a otros eventos.
@@ -70,7 +70,7 @@
           <div class="form-group" style="margin-top: 1.25rem;">
             <label for="doorTicketInput">Codigo de entrada (6 caracteres):</label>
             <div style="display: flex; gap: 0.5rem;">
-              <input type="text" id="doorTicketInput" class="form-control font-mono" placeholder="Ej: AB12CD" maxlength="6" style="text-transform: uppercase; font-size: 1.15rem; letter-spacing: 0.1em;">
+              <input type="text" id="doorTicketInput" class="form-control font-mono ticket-input-large" placeholder="Ej: AB12CD" maxlength="6" style="text-transform: uppercase; font-size: 1.15rem; letter-spacing: 0.1em;">
               <button id="btnValidarEntrada" class="btn btn-primary" style="white-space: nowrap;">
                 Validar Ingreso
               </button>

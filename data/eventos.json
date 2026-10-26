@@ -1,203 +1,164 @@
-[
-  {
-    "Id": "a1111111-1111-1111-1111-111111111111",
-    "Nombre": "Festival Primavera Sound 2026",
-    "Descripcion": "El festival de música más esperado del año con artistas nacionales e internacionales en vivo.",
-    "Fecha": "2026-10-15T18:00:00",
-    "Lugar": "Parque Sarmiento, Buenos Aires",
-    "Latitud": -34.5539,
-    "Longitud": -58.4975,
-    "Cancelado": false,
-    "Modalidades": [
-      {
-        "Id": "b1111111-1111-1111-1111-111111111111",
-        "Nombre": "Entrada General",
-        "Precio": 15000.0,
-        "Beneficios": "Acceso general a todos los escenarios y áreas de recreación",
-        "CupoMaximo": 100,
-        "CupoDisponible": 96,
-        "Cancelada": false
-      },
-      {
-        "Id": "b2222222-2222-2222-2222-222222222222",
-        "Nombre": "Acceso VIP Front Stage",
-        "Precio": 35000.0,
-        "Beneficios": "Acceso prioritario, sector lounge exclusivo y 2 consumiciones",
-        "CupoMaximo": 30,
-        "CupoDisponible": 30,
-        "Cancelada": false
-      }
-    ]
-  },
-  {
-    "Id": "a2222222-2222-2222-2222-222222222222",
-    "Nombre": "Conferencia de Tecnología e IA 2026",
-    "Descripcion": "Charlas, workshops y networking sobre Inteligencia Artificial, Cloud y Desarrollo de Software.",
-    "Fecha": "2026-11-20T09:00:00",
-    "Lugar": "La Rural, Palermo, Buenos Aires",
-    "Latitud": -34.5802,
-    "Longitud": -58.4215,
-    "Cancelado": true,
-    "Modalidades": [
-      {
-        "Id": "b3333333-3333-3333-3333-333333333333",
-        "Nombre": "Pase Estudiante",
-        "Precio": 8000.0,
-        "Beneficios": "Acceso a conferencias generales y talleres prácticos",
-        "CupoMaximo": 50,
-        "CupoDisponible": 50,
-        "Cancelada": false
-      },
-      {
-        "Id": "b4444444-4444-4444-4444-444444444444",
-        "Nombre": "Pase Profesional",
-        "Precio": 18000.0,
-        "Beneficios": "Acceso total, sala VIP de networking, certificado oficial y almuerzo",
-        "CupoMaximo": 40,
-        "CupoDisponible": 40,
-        "Cancelada": false
-      }
-    ]
-  },
-  {
-    "Id": "a3333333-3333-3333-3333-333333333333",
-    "Nombre": "Noche de Jazz & Blues",
-    "Descripcion": "Una velada íntima con destacados músicos de jazz y degustación de vinos seleccionados.",
-    "Fecha": "2026-09-30T21:00:00",
-    "Lugar": "Teatro Coliseo, Buenos Aires",
-    "Latitud": -34.5977,
-    "Longitud": -58.3791,
-    "Cancelado": false,
-    "Modalidades": [
-      {
-        "Id": "b5555555-5555-5555-5555-555555555555",
-        "Nombre": "Platea Central",
-        "Precio": 12000.0,
-        "Beneficios": "Ubicación preferencial con excelente acústica y copa de bienvenida",
-        "CupoMaximo": 30,
-        "CupoDisponible": 30,
-        "Cancelada": true
-      },
-      {
-        "Id": "b6666666-6666-6666-6666-666666666666",
-        "Nombre": "Pullman",
-        "Precio": 7500.0,
-        "Beneficios": "Ubicación en planta alta con vista panorámica del escenario",
-        "CupoMaximo": 40,
-        "CupoDisponible": 40,
-        "Cancelada": false
-      }
-    ]
-  },
-  {
-    "Id": "020e0d87-9f6a-426d-8c73-7e36e2f75542",
-    "Nombre": "Devil God Contest",
-    "Descripcion": "Evento juvenil de farmeo de aura masivo 67",
-    "Fecha": "2027-07-06T09:07:00Z",
-    "Lugar": "128, Rivadavia, Centro, Municipio de Calchaquí, Departamento Vera, Santa Fe, S3050, Argentina",
-    "Latitud": -29.88968,
-    "Longitud": -60.2821,
-    "Cancelado": true,
-    "Modalidades": [
-      {
-        "Id": "6dbcee79-97df-4f4f-9af6-b021580cf31d",
-        "Nombre": "Participante",
-        "Precio": 67.0,
-        "Beneficios": "Remera de Tung Tung Sahur haciendo el 67",
-        "CupoMaximo": 670,
-        "CupoDisponible": 670,
-        "Cancelada": false
-      },
-      {
-        "Id": "7b52b9b0-4209-4a06-b6bc-43816c52ac84",
-        "Nombre": "Observador",
-        "Precio": 6700.0,
-        "Beneficios": "Sentir el aura",
-        "CupoMaximo": 1000,
-        "CupoDisponible": 1000,
-        "Cancelada": false
-      }
-    ]
-  },
-  {
-    "Id": "d6f248fc-5e82-4d85-93b3-7f785faaca5a",
-    "Nombre": "Test",
-    "Descripcion": "sdfaef",
-    "Fecha": "2026-09-29T22:12:00Z",
-    "Lugar": "1388, Lavalle, Microcentro, San Nicolás, Buenos Aires, Comuna 1, Ciudad Autónoma de Buenos Aires, C1055AAO, Argentina",
-    "Latitud": -34.602826,
-    "Longitud": -58.386334,
-    "Cancelado": false,
-    "Modalidades": [
-      {
-        "Id": "c3fd5f89-d7d2-4bb2-9ad8-b060a5a1914d",
-        "Nombre": "test",
-        "Precio": 10000.0,
-        "Beneficios": "fasfweafawef",
-        "CupoMaximo": 10,
-        "CupoDisponible": 2,
-        "Cancelada": false
-      }
-    ]
-  },
-  {
-    "Id": "24251e5a-9d11-4184-bf0f-3947643f433b",
-    "Nombre": "TEST",
-    "Descripcion": "testeo de toda la pag",
-    "Fecha": "2026-11-17T23:30:00Z",
-    "Lugar": "peñarol rafaela",
-    "Latitud": -34.6037,
-    "Longitud": -58.3816,
-    "Cancelado": false,
-    "Modalidades": [
-      {
-        "Id": "2a378d7d-7038-4d02-b899-17ed6e649c6b",
-        "Nombre": "test 1",
-        "Precio": 5550.0,
-        "Beneficios": "nada",
-        "CupoMaximo": 40,
-        "CupoDisponible": 0,
-        "Cancelada": false
-      },
-      {
-        "Id": "eeba239c-e24a-46b1-8eda-b02b48705082",
-        "Nombre": "test2",
-        "Precio": 2000.0,
-        "Beneficios": "todo",
-        "CupoMaximo": 10,
-        "CupoDisponible": 0,
-        "Cancelada": false
-      },
-      {
-        "Id": "ccb9e427-159a-41ed-846d-fcda0f42f17d",
-        "Nombre": "efasef",
-        "Precio": 5050.25,
-        "Beneficios": "",
-        "CupoMaximo": 25,
-        "CupoDisponible": 25,
-        "Cancelada": true
-      }
-    ]
-  },
-  {
-    "Id": "4f06dcbe-5ab8-4f2f-a1c7-a1354f2e1df5",
-    "Nombre": "dsafewf",
-    "Descripcion": "adfaesf",
-    "Fecha": "2026-11-19T06:11:00Z",
-    "Lugar": "plaza de mayo",
-    "Latitud": -34.608445,
-    "Longitud": -58.372179,
-    "Cancelado": true,
-    "Modalidades": [
-      {
-        "Id": "152648d3-26c2-4a77-948c-60e77dc151bf",
-        "Nombre": "egser",
-        "Precio": 1000.0,
-        "Beneficios": "aeafef",
-        "CupoMaximo": 20,
-        "CupoDisponible": 20,
-        "Cancelada": false
-      }
-    ]
-  }
+﻿[
+    {
+        "Id":  "a1111111-1111-1111-1111-111111111111",
+        "Nombre":  "Festival Primavera Sound 2026",
+        "Descripcion":  "El festival de música más esperado del año con artistas nacionales e internacionales en vivo.",
+        "Fecha":  "2026-10-15T18:00:00",
+        "Lugar":  "Parque Sarmiento, Buenos Aires",
+        "Latitud":  -34.5539,
+        "Longitud":  -58.4975,
+        "Cancelado":  false,
+        "Modalidades":  [
+                            {
+                                "Id":  "b1111111-1111-1111-1111-111111111111",
+                                "Nombre":  "Entrada General",
+                                "Precio":  15000.0,
+                                "Beneficios":  "Acceso general a todos los escenarios y áreas de recreación",
+                                "CupoMaximo":  100,
+                                "CupoDisponible":  96,
+                                "Cancelada":  false
+                            },
+                            {
+                                "Id":  "b2222222-2222-2222-2222-222222222222",
+                                "Nombre":  "Acceso VIP Front Stage",
+                                "Precio":  35000.0,
+                                "Beneficios":  "Acceso prioritario, sector lounge exclusivo y 2 consumiciones",
+                                "CupoMaximo":  30,
+                                "CupoDisponible":  30,
+                                "Cancelada":  false
+                            },
+                            {
+                                "Id":  "c7ac71bb-8959-43c0-b965-71093392d6b4",
+                                "Nombre":  "General",
+                                "Precio":  12000.0,
+                                "Beneficios":  "Acceso rápido",
+                                "CupoMaximo":  100,
+                                "CupoDisponible":  100,
+                                "Cancelada":  false
+                            }
+                        ]
+    },
+    {
+        "Id":  "a2222222-2222-2222-2222-222222222222",
+        "Nombre":  "Conferencia de Tecnología e IA 2026",
+        "Descripcion":  "Charlas, workshops y networking sobre Inteligencia Artificial, Cloud y Desarrollo de Software.",
+        "Fecha":  "2026-11-20T09:00:00",
+        "Lugar":  "La Rural, Palermo, Buenos Aires",
+        "Latitud":  -34.5802,
+        "Longitud":  -58.4215,
+        "Cancelado":  false,
+        "Modalidades":  [
+                            {
+                                "Id":  "b3333333-3333-3333-3333-333333333333",
+                                "Nombre":  "Pase Estudiante",
+                                "Precio":  8000.0,
+                                "Beneficios":  "Acceso a conferencias generales y talleres prácticos",
+                                "CupoMaximo":  50,
+                                "CupoDisponible":  50,
+                                "Cancelada":  false
+                            },
+                            {
+                                "Id":  "b4444444-4444-4444-4444-444444444444",
+                                "Nombre":  "Pase Profesional",
+                                "Precio":  18000.0,
+                                "Beneficios":  "Acceso total, sala VIP de networking, certificado oficial y almuerzo",
+                                "CupoMaximo":  40,
+                                "CupoDisponible":  40,
+                                "Cancelada":  false
+                            }
+                        ]
+    },
+    {
+        "Id":  "a3333333-3333-3333-3333-333333333333",
+        "Nombre":  "Noche de Jazz \u0026 Blues",
+        "Descripcion":  "Una velada íntima con destacados músicos de jazz y degustación de vinos seleccionados.",
+        "Fecha":  "2026-09-30T21:00:00",
+        "Lugar":  "Teatro Coliseo, Buenos Aires",
+        "Latitud":  -34.5977,
+        "Longitud":  -58.3791,
+        "Cancelado":  false,
+        "Modalidades":  [
+                            {
+                                "Id":  "b5555555-5555-5555-5555-555555555555",
+                                "Nombre":  "Platea Central",
+                                "Precio":  12000.0,
+                                "Beneficios":  "Ubicación preferencial con excelente acústica y copa de bienvenida",
+                                "CupoMaximo":  30,
+                                "CupoDisponible":  30,
+                                "Cancelada":  false
+                            },
+                            {
+                                "Id":  "b6666666-6666-6666-6666-666666666666",
+                                "Nombre":  "Pullman",
+                                "Precio":  7500.0,
+                                "Beneficios":  "Ubicación en planta alta con vista panorámica del escenario",
+                                "CupoMaximo":  40,
+                                "CupoDisponible":  40,
+                                "Cancelada":  false
+                            }
+                        ]
+    },
+    {
+        "Id":  "922cbdd1-c85e-483c-b8f6-06f7e89dc2e3",
+        "Nombre":  "Concierto Sunset 2026",
+        "Descripcion":  "Concierto al aire libre con barra y música",
+        "Fecha":  "2026-11-30T03:10:00Z",
+        "Lugar":  "Parque de la Ciudad, Buenos Aires",
+        "Latitud":  -34.67262,
+        "Longitud":  -58.399914,
+        "Cancelado":  true,
+        "Modalidades":  [
+                            {
+                                "Id":  "353d26ac-2be9-4ac9-a2f7-b457c365fa44",
+                                "Nombre":  "Campo general",
+                                "Precio":  20000.0,
+                                "Beneficios":  "Consumición  gratuita",
+                                "CupoMaximo":  150,
+                                "CupoDisponible":  144,
+                                "Cancelada":  false
+                            }
+                        ]
+    },
+    {
+        "Id":  "793f2b17-3da7-4d9c-987a-2f09db7e083b",
+        "Nombre":  "Concierto Sunset 2026",
+        "Descripcion":  "Evento al aire libre con barra y música",
+        "Fecha":  "2026-12-25T03:14:00Z",
+        "Lugar":  "Costanera Sur, Buenos Aires",
+        "Latitud":  -34.636181,
+        "Longitud":  -58.400334,
+        "Cancelado":  false,
+        "Modalidades":  [
+                            {
+                                "Id":  "c4444444-4444-4444-4444-444444444444",
+                                "Nombre":  "Entrada General",
+                                "Precio":  18000,
+                                "Beneficios":  "Acceso al predio y sector general",
+                                "CupoMaximo":  100,
+                                "CupoDisponible":  100,
+                                "Cancelada":  false
+                            }
+                        ]
+    },
+    {
+        "Id":  "50c18a26-d462-4e69-abc9-3e9fed936ab4",
+        "Nombre":  "Concierto de Rock",
+        "Descripcion":  "musica",
+        "Fecha":  "2026-10-31T21:21:00Z",
+        "Lugar":  "Plaza 25 de Mayo, Rafaela, Santa Fe",
+        "Latitud":  -31.252695,
+        "Longitud":  -61.491721,
+        "Cancelado":  false,
+        "Modalidades":  [
+                            {
+                                "Id":  "5b3ab7ae-181a-4181-8516-4ef6fa580400",
+                                "Nombre":  "platea",
+                                "Precio":  2000.0,
+                                "Beneficios":  "consumiciones gratis",
+                                "CupoMaximo":  30,
+                                "CupoDisponible":  25,
+                                "Cancelada":  false
+                            }
+                        ]
+    }
 ]

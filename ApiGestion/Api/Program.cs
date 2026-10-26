@@ -1,4 +1,4 @@
-using GestionEventos.Api.DTOs;
+﻿using GestionEventos.Api.DTOs;
 using GestionEventos.Data;
 using GestionEventos.Logica;
 using Microsoft.AspNetCore.Mvc;
@@ -12,8 +12,6 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
-// Datos con formato inválido (Data Annotations de los Request): 400 con el motivo en "error",
-// el mismo formato que usan las reglas de negocio.
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = contexto =>
@@ -103,7 +101,6 @@ if (Directory.Exists(frontendPath))
     });
 
     app.MapGet("/", () => Results.File(Path.Combine(frontendPath, "index.html"), "text/html"));
-    app.MapGet("/eventos", () => Results.File(Path.Combine(frontendPath, "eventos.html"), "text/html"));
     app.MapGet("/comprar-entrada", () => Results.File(Path.Combine(frontendPath, "comprar-entrada.html"), "text/html"));
     app.MapGet("/consultar-compra", () => Results.File(Path.Combine(frontendPath, "consultar-compra.html"), "text/html"));
     app.MapGet("/control-acceso", () => Results.File(Path.Combine(frontendPath, "control-acceso.html"), "text/html"));

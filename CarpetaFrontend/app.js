@@ -52,7 +52,14 @@ async function cargarUsuarios() {
     });
 
     const savedDni = localStorage.getItem("ticketflow_user_dni");
-    const userToSelect = state.usuarios.find(u => u.dni.toString() === savedDni) || state.usuarios[0];
+    let userToSelect = null;
+    if (savedDni) {
+      userToSelect = state.usuarios.find(u => u.dni.toString() === savedDni);
+    }
+    if (!userToSelect) {
+      // Por defecto seleccionamos explícitamente a un usuario Comprador para mayor seguridad
+      userToSelect = state.usuarios.find(u => u.rol === "Comprador") || state.usuarios[0];
+    }
 
     if (userToSelect) {
       select.value = userToSelect.dni;
@@ -193,10 +200,12 @@ function renderizarCatalogo() {
     const card = document.createElement("div");
     card.className = "event-card";
 
+    const tieneModalidadesActivas = ev.modalidades && ev.modalidades.length > 0 && ev.modalidades.some(m => !m.cancelada);
     let textoBoton = "Ver Detalle";
     if (state.usuarioActivo?.rol === "Comprador") {
       if (ev.cancelado) textoBoton = "Evento Cancelado";
       else if (esPasado) textoBoton = "Evento Finalizado";
+      else if (!tieneModalidadesActivas) textoBoton = "Ver Detalle (Sin modalidades)";
       else textoBoton = "Comprar Entradas";
     }
 
@@ -232,7 +241,7 @@ function renderizarCatalogo() {
         ${modalidadesHtml}
       </div>
       <div class="event-card-footer" style="display: flex; gap: 0.5rem;">
-        <a href="comprar-entrada.html?id=${ev.id}" class="btn ${ev.cancelado || esPasado ? 'btn-outline' : 'btn-primary'} btn-block">
+        <a href="comprar-entrada.html?id=${ev.id}" class="btn ${ev.cancelado || esPasado || !tieneModalidadesActivas ? 'btn-outline' : 'btn-primary'} btn-block">
           ${textoBoton}
         </a>
         ${state.usuarioActivo?.rol === "Organizador" && !ev.cancelado && !esPasado ? `
@@ -353,9 +362,17 @@ function renderDetalleEvento(evento) {
 
   const btnGmaps = document.getElementById("btnAbrirGoogleMapsExt");
   if (btnGmaps) {
-    const lat = evento.latitud || -34.6037;
-    const lng = evento.longitud || -58.3816;
-    btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    const tieneCoords = evento.latitud !== null && evento.latitud !== undefined && !Number.isNaN(Number(evento.latitud)) &&
+                        evento.longitud !== null && evento.longitud !== undefined && !Number.isNaN(Number(evento.longitud));
+    if (tieneCoords) {
+      btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${Number(evento.latitud)},${Number(evento.longitud)}`;
+      btnGmaps.style.display = "inline-flex";
+    } else if (evento.lugar) {
+      btnGmaps.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(evento.lugar)}`;
+      btnGmaps.style.display = "inline-flex";
+    } else {
+      btnGmaps.style.display = "none";
+    }
   }
 
   renderizarMapa(evento.latitud, evento.longitud, evento.nombre, evento.lugar);
@@ -370,22 +387,37 @@ function renderDetalleEvento(evento) {
 }
 
 function crearUrlMapaGoogle(lat, lng, zoom = 15) {
-  const latitud = Number.isFinite(Number(lat)) ? Number(lat) : -34.6037;
-  const longitud = Number.isFinite(Number(lng)) ? Number(lng) : -58.3816;
-  return `https://maps.google.com/maps?q=${latitud},${longitud}&z=${zoom}&output=embed`;
+  if (lat === null || lat === undefined || Number.isNaN(Number(lat)) ||
+      lng === null || lng === undefined || Number.isNaN(Number(lng))) {
+    return "";
+  }
+  return `https://maps.google.com/maps?q=${Number(lat)},${Number(lng)}&z=${zoom}&output=embed`;
 }
 
 function renderizarMapa(lat, lng, titulo, lugar) {
-  const finalLat = (lat !== null && lat !== undefined && !Number.isNaN(Number(lat))) ? Number(lat) : -34.6037;
-  const finalLng = (lng !== null && lng !== undefined && !Number.isNaN(Number(lng))) ? Number(lng) : -58.3816;
-
   const mapDiv = document.getElementById("mapContainer");
   if (!mapDiv) return;
+
+  const tieneCoords = lat !== null && lat !== undefined && !Number.isNaN(Number(lat)) &&
+                      lng !== null && lng !== undefined && !Number.isNaN(Number(lng));
+
+  if (!tieneCoords) {
+    mapDiv.innerHTML = `
+      <div style="min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--slate-100); border: 2px dashed var(--slate-300); border-radius: 12px; padding: 2rem; text-align: center; color: var(--slate-600);">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--slate-400); margin-bottom: 0.75rem;">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+        <p style="font-weight: 600; margin-bottom: 0.25rem;">Ubicación geográfica no disponible</p>
+        <p style="font-size: 0.85rem; color: var(--slate-500); max-width: 320px;">Este evento no posee coordenadas exactas registradas. Lugar informado: <strong>${lugar || "Sin especificar"}</strong></p>
+      </div>`;
+    return;
+  }
 
   mapDiv.innerHTML = `
     <iframe
       title="Mapa de ubicación del evento"
-      src="${crearUrlMapaGoogle(finalLat, finalLng)}"
+      src="${crearUrlMapaGoogle(Number(lat), Number(lng))}"
       width="100%" height="100%" style="border:0; min-height:280px; border-radius:12px;"
       loading="lazy" referrerpolicy="no-referrer-when-downgrade"
       allowfullscreen>
@@ -399,9 +431,26 @@ function actualizarInfoModalidadSeleccionada() {
   const modId = selectMod.value;
   const modalidad = state.eventoSeleccionado?.modalidades?.find(m => m.id === modId);
   const box = document.getElementById("modalidadInfoBox");
+  const btnConfirmar = document.getElementById("btnConfirmarCompra");
+  const esPasado = state.eventoSeleccionado && new Date(state.eventoSeleccionado.fecha) < new Date();
 
   if (!modalidad) {
     if (box) box.style.display = "none";
+    if (btnConfirmar) {
+      btnConfirmar.disabled = true;
+      if (state.eventoSeleccionado?.cancelado) {
+        btnConfirmar.textContent = "Evento Cancelado";
+      } else if (esPasado) {
+        btnConfirmar.textContent = "Evento Finalizado";
+      } else if (!state.eventoSeleccionado?.modalidades || state.eventoSeleccionado.modalidades.length === 0) {
+        btnConfirmar.textContent = "Sin Modalidades Disponibles";
+      } else if (state.eventoSeleccionado.modalidades.every(m => m.cupoDisponible <= 0 || m.cancelada)) {
+        btnConfirmar.textContent = "Entradas Agotadas";
+      } else {
+        btnConfirmar.textContent = "Seleccione una Modalidad";
+      }
+    }
+    calcularPrecioCompra();
     return;
   }
 
@@ -428,8 +477,6 @@ function actualizarInfoModalidadSeleccionada() {
     }
   }
 
-  const esPasado = state.eventoSeleccionado && new Date(state.eventoSeleccionado.fecha) < new Date();
-  const btnConfirmar = document.getElementById("btnConfirmarCompra");
   if (btnConfirmar) {
     if (state.eventoSeleccionado?.cancelado) {
       btnConfirmar.disabled = true;
@@ -464,9 +511,33 @@ function calcularPrecioCompra() {
   const modId = selectMod.value;
   const modalidad = state.eventoSeleccionado?.modalidades?.find(m => m.id === modId);
   const inputCant = document.getElementById("inputCantidad");
-  const cantidad = parseInt(inputCant?.value, 10) || 1;
+  const rawCant = parseInt(inputCant?.value, 10);
+  const cantidadValida = !isNaN(rawCant) && rawCant >= 1;
+  const cantidad = cantidadValida ? rawCant : 1;
 
-  if (!modalidad) return;
+  if (!modalidad) {
+    const elSub = document.getElementById("resumenSubtotal");
+    const elDesc = document.getElementById("resumenDescuento");
+    const elTot = document.getElementById("resumenTotal");
+    if (elSub) elSub.textContent = "$0";
+    if (elDesc) elDesc.textContent = "-$0";
+    if (elTot) elTot.textContent = "$0";
+    return;
+  }
+
+  const elUnit = document.getElementById("resumenPrecioUnitario");
+  if (elUnit) elUnit.textContent = `$${modalidad.precio.toLocaleString('es-AR')}`;
+
+  if (!cantidadValida) {
+    document.getElementById("resumenSubtotal").textContent = "$0";
+    document.getElementById("resumenDescuento").textContent = "-$0";
+    document.getElementById("resumenTotal").textContent = "$0";
+    const bannerDesc = document.getElementById("discountBanner");
+    const filaDesc = document.getElementById("filaDescuento");
+    if (bannerDesc) bannerDesc.style.display = "none";
+    if (filaDesc) filaDesc.style.display = "none";
+    return;
+  }
 
   const subtotal = modalidad.precio * cantidad;
   let total = subtotal;
@@ -621,8 +692,18 @@ async function buscarCompra(compraIdManual = null) {
       headers: { "X-Dni": state.usuarioActivo?.dni || "" }
     });
     if (!res.ok) {
-      if (res.status === 404) throw new Error("Compra no encontrada.");
-      throw new Error("Error al consultar la compra.");
+      let backendError = "";
+      try {
+        const errJson = await res.json();
+        if (errJson && (errJson.error || errJson.mensaje)) {
+          backendError = errJson.error || errJson.mensaje;
+        }
+      } catch (_) {}
+
+      if (res.status === 404) {
+        throw new Error(backendError || "Compra no encontrada.");
+      }
+      throw new Error(backendError || "Error al consultar la compra.");
     }
 
     const compra = await res.json();
@@ -649,6 +730,18 @@ function renderizarDetalleCompra(compra) {
   document.getElementById("compraInfoModalidad").textContent = `${compra.nombreModalidad} (${compra.cantidad} entradas)`;
   document.getElementById("compraInfoTotal").textContent = `$${compra.total.toLocaleString('es-AR')}`;
 
+  const entradasCanceladas = compra.entradas.filter(e => e.cancelada);
+  const totalDevuelto = entradasCanceladas.reduce((sum, e) => sum + (e.precioUnitario || 0), 0);
+  const filaDevuelto = document.getElementById("filaTotalDevuelto");
+  const spanDevuelto = document.getElementById("compraInfoReintegrado");
+
+  if (entradasCanceladas.length > 0 && filaDevuelto && spanDevuelto) {
+    spanDevuelto.textContent = `$${totalDevuelto.toLocaleString('es-AR')}`;
+    filaDevuelto.style.display = "flex";
+  } else if (filaDevuelto) {
+    filaDevuelto.style.display = "none";
+  }
+
   const tbody = document.getElementById("entradasCompraTbody");
   tbody.innerHTML = "";
 
@@ -667,7 +760,7 @@ function renderizarDetalleCompra(compra) {
     }
 
     let btnCancelarHtml = "-";
-    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada ) {
+    if (esComprador && esDuenio && !entrada.usada && !entrada.cancelada) {
       btnCancelarHtml = `
         <button class="btn btn-danger btn-sm btn-cancelar-entrada" data-codigo="${entrada.codigo}">
           Cancelar Entrada
@@ -764,7 +857,7 @@ async function actualizarMisComprasRapidas() {
 
 async function inicializarPuerta() {
   try {
-    const res = await fetch(`${API_GESTION}/eventos`);
+    const res = await fetch(`${API_GESTION}/eventos?paraControlAcceso=true`);
     if (res.ok) {
       state.eventos = await res.json();
       const sel = document.getElementById("puertaEventoSelect");
@@ -773,7 +866,9 @@ async function inicializarPuerta() {
         state.eventos.forEach(ev => {
           const opt = document.createElement("option");
           opt.value = ev.id;
-          opt.textContent = `${ev.nombre} (${ev.cancelado ? 'Cancelado' : 'Disponible'})`;
+          const fecha = new Date(ev.fecha);
+          const fechaStr = fecha.toLocaleDateString("es-AR");
+          opt.textContent = `${ev.nombre} - ${fechaStr} (${ev.lugar})`;
           sel.appendChild(opt);
         });
       }
@@ -841,7 +936,8 @@ async function validarEntradaEnPuerta() {
   } catch (err) {
     mostrarResultadoValidacion({
       exitoso: false,
-      mensaje: `Error al conectar con la API de Validacion (:5002): ${err.message}`
+      esErrorSistema: true,
+      mensaje: `Error al conectar con la API de Validación (:5002): ${err.message}`
     });
   } finally {
     btn.disabled = false;
@@ -851,10 +947,11 @@ async function validarEntradaEnPuerta() {
 
 function mostrarResultadoValidacion(res) {
   const card = document.getElementById("validationResultCard");
+  if (!card) return;
   card.style.display = "block";
 
   if (res.exitoso) {
-    card.className = "validation-result-card success";
+    card.className = "validation-result-card success result-success";
     card.innerHTML = `
       <div class="result-badge-indicator">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -865,7 +962,7 @@ function mostrarResultadoValidacion(res) {
       <div class="result-title">Ingreso Permitido</div>
       <div class="result-details-grid">
         <div class="result-detail-item">
-          <strong>Codigo de Entrada</strong>
+          <strong>Código de Entrada</strong>
           <span class="ticket-code-tag">${res.codigo || "-"}</span>
         </div>
         <div class="result-detail-item">
@@ -882,8 +979,30 @@ function mostrarResultadoValidacion(res) {
         </div>
       </div>
     `;
+  } else if (res.esErrorSistema) {
+    card.className = "validation-result-card warning result-warning";
+    card.innerHTML = `
+      <div class="result-badge-indicator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        Fallo del Sistema
+      </div>
+      <div class="result-title">Error de Conexión</div>
+      <div class="result-details-grid">
+        <div class="result-detail-item" style="grid-column: 1 / -1;">
+          <strong>Detalle técnico</strong>
+          <span style="font-weight: 500;">${res.mensaje}</span>
+          <p style="margin-top: 0.5rem; font-size: 0.825rem; color: var(--slate-600);">
+            Atención: Este fallo corresponde a un problema de comunicación con el servicio de validación y <em>no</em> indica que la entrada haya sido rechazada.
+          </p>
+        </div>
+      </div>
+    `;
   } else {
-    card.className = "validation-result-card error";
+    card.className = "validation-result-card error result-danger";
     card.innerHTML = `
       <div class="result-badge-indicator">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -896,7 +1015,7 @@ function mostrarResultadoValidacion(res) {
       <div class="result-title">Entrada Rechazada</div>
       <div class="result-details-grid">
         <div class="result-detail-item">
-          <strong>Codigo presentado</strong>
+          <strong>Código presentado</strong>
           <span class="ticket-code-tag">${res.codigo || "-"}</span>
         </div>
         <div class="result-detail-item" style="grid-column: 1 / -1;">
@@ -959,7 +1078,7 @@ async function inicializarGestionEventos() {
 
 async function cargarEventosGestion() {
   try {
-    const res = await fetch(`${API_GESTION}/eventos`, {
+    const res = await fetch(`${API_GESTION}/eventos?incluirNoDisponibles=true`, {
       headers: { "X-Dni": state.usuarioActivo?.dni?.toString() || "" }
     });
     if (!res.ok) throw new Error("Error al obtener eventos para gestión.");
@@ -1002,8 +1121,10 @@ async function crearNuevoEvento(e) {
   const descripcion = document.getElementById("nuevoEventoDescripcion").value.trim();
   const fecha = document.getElementById("nuevoEventoFecha").value;
   const lugar = document.getElementById("nuevoEventoLugar").value.trim();
-  const latitud = parseFloat(document.getElementById("nuevoEventoLatitud").value) || -34.6037;
-  const longitud = parseFloat(document.getElementById("nuevoEventoLongitud").value) || -58.3816;
+  const inputLatVal = document.getElementById("nuevoEventoLatitud").value.trim();
+  const inputLngVal = document.getElementById("nuevoEventoLongitud").value.trim();
+  const latitud = inputLatVal !== "" && !Number.isNaN(Number(inputLatVal)) ? Number(inputLatVal) : null;
+  const longitud = inputLngVal !== "" && !Number.isNaN(Number(inputLngVal)) ? Number(inputLngVal) : null;
 
   if (!nombre || !fecha || !lugar) {
     alert("Complete los campos obligatorios: Nombre, Fecha y Lugar.");
@@ -1037,10 +1158,21 @@ async function crearNuevoEvento(e) {
 
     const inputLat = document.getElementById("nuevoEventoLatitud");
     const inputLng = document.getElementById("nuevoEventoLongitud");
-    if (inputLat) inputLat.value = "-34.6037";
-    if (inputLng) inputLng.value = "-58.3816";
-    const mapa = document.getElementById("mapaCrearEvento")?.querySelector("iframe");
-    if (mapa) mapa.src = crearUrlMapaGoogle(-34.6037, -58.3816, 13);
+    if (inputLat) inputLat.value = "";
+    if (inputLng) inputLng.value = "";
+    const mapaDiv = document.getElementById("mapaCrearEvento");
+    if (mapaDiv) {
+      mapaDiv.innerHTML = `
+        <div id="mapaPlaceholder" style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--slate-100); text-align: center; color: var(--slate-500); padding: 1.5rem; border-radius: var(--radius-sm);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 0.5rem; opacity: 0.6;">
+            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+            <line x1="8" y1="2" x2="8" y2="18"></line>
+            <line x1="16" y1="6" x2="16" y2="22"></line>
+          </svg>
+          <p style="font-weight: 500; margin-bottom: 0.25rem;">Vista previa de mapa no cargada</p>
+          <small>Ingresa una dirección o lugar y presiona "Buscar en Mapa" para geolocalizar el evento.</small>
+        </div>`;
+    }
 
     await cargarEventosGestion();
 
@@ -1179,12 +1311,12 @@ function renderizarModalidadesParaCancelar() {
   tbody.innerHTML = "";
 
   if (!evento) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Selecciona un evento para gestionar sus modalidades.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-500);">Selecciona un evento para gestionar sus modalidades.</td></tr>`;
     return;
   }
 
   if (!evento.modalidades || evento.modalidades.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--gray-500);">Este evento no tiene modalidades registradas aun.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--slate-500);">Este evento no tiene modalidades registradas aun.</td></tr>`;
     return;
   }
 
@@ -1200,13 +1332,13 @@ function renderizarModalidadesParaCancelar() {
 
     if (m.cancelada) {
       estadoBadge = `<span class="badge badge-danger">Cancelada</span>`;
-      btnAccionHtml = `<span style="color: var(--gray-500); font-size: 0.825rem; font-style: italic;">Cancelada</span>`;
+      btnAccionHtml = `<span style="color: var(--slate-500); font-size: 0.825rem; font-style: italic;">Cancelada</span>`;
     } else if (evento.cancelado) {
-      btnAccionHtml = `<span style="color: var(--gray-500); font-size: 0.825rem; font-style: italic;">Evento Cancelado</span>`;
+      btnAccionHtml = `<span style="color: var(--slate-500); font-size: 0.825rem; font-style: italic;">Evento Cancelado</span>`;
     }
 
     tr.innerHTML = `
-      <td><strong>${m.nombre}</strong><br><small style="color: var(--gray-500);">${m.beneficios || "Sin beneficios"}</small></td>
+      <td><strong>${m.nombre}</strong><br><small style="color: var(--slate-500);">${m.beneficios || "Sin beneficios"}</small></td>
       <td>$${m.precio.toLocaleString('es-AR')}</td>
       <td>${m.cupoDisponible} / ${m.cupoMaximo}</td>
       <td>${estadoBadge}</td>
@@ -1228,44 +1360,33 @@ function inicializarMapaCrearEvento() {
 
   const latInput = document.getElementById("nuevoEventoLatitud");
   const lngInput = document.getElementById("nuevoEventoLongitud");
-  const lat = Number.parseFloat(latInput?.value) || -34.6037;
-  const lng = Number.parseFloat(lngInput?.value) || -58.3816;
+  const latVal = latInput?.value?.trim();
+  const lngVal = lngInput?.value?.trim();
 
-  mapDiv.innerHTML = `
-    <iframe title="Vista previa de Google Maps"
-      src="${crearUrlMapaGoogle(lat, lng, 13)}"
-      width="100%" height="100%" style="border:0; min-height:250px; border-radius:8px;"
-      loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;
-
-  const actualizarDesdeInputs = () => {
-    const nuevaLat = Number.parseFloat(latInput?.value);
-    const nuevaLng = Number.parseFloat(lngInput?.value);
-    if (Number.isFinite(nuevaLat) && Number.isFinite(nuevaLng)) {
-      mapDiv.querySelector("iframe").src = crearUrlMapaGoogle(nuevaLat, nuevaLng, 13);
-    }
-  };
-
-  latInput?.addEventListener("change", actualizarDesdeInputs);
-  lngInput?.addEventListener("change", actualizarDesdeInputs);
+  if (latVal && lngVal && !Number.isNaN(Number(latVal)) && !Number.isNaN(Number(lngVal))) {
+    mapDiv.innerHTML = `
+      <iframe title="Vista previa de Google Maps"
+        src="${crearUrlMapaGoogle(Number(latVal), Number(lngVal), 14)}"
+        width="100%" height="100%" style="border:0; min-height:250px; border-radius:8px;"
+        loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;
+  }
 }
 
-function actualizarUbicacionSeleccionada(lat, lng, buscarNombre = false) {
+function actualizarUbicacionSeleccionada(lat, lng) {
   const inputLat = document.getElementById("nuevoEventoLatitud");
   const inputLng = document.getElementById("nuevoEventoLongitud");
 
   if (inputLat) inputLat.value = Number(lat).toFixed(6);
   if (inputLng) inputLng.value = Number(lng).toFixed(6);
 
-  if (buscarNombre) {
-    const inputLugar = document.getElementById("nuevoEventoLugar");
-    if (inputLugar && !inputLugar.value.trim()) {
-      inputLugar.value = `Ubicación (${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)})`;
-    }
-  }
-
   const mapDiv = document.getElementById("mapaCrearEvento");
-  const iframe = mapDiv?.querySelector("iframe");
-  if (iframe) iframe.src = crearUrlMapaGoogle(Number(lat), Number(lng), 15);
+  if (mapDiv) {
+    mapDiv.innerHTML = `
+      <iframe title="Vista previa de Google Maps"
+        src="${crearUrlMapaGoogle(Number(lat), Number(lng), 15)}"
+        width="100%" height="100%" style="border:0; min-height:250px; border-radius:8px;"
+        loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>`;
+  }
 }
 
 async function buscarLugarEnMapa() {
@@ -1298,7 +1419,7 @@ async function buscarLugarEnMapa() {
     const lat = parseFloat(data[0].lat);
     const lon = parseFloat(data[0].lon);
 
-    actualizarUbicacionSeleccionada(lat, lon, false);
+    actualizarUbicacionSeleccionada(lat, lon);
 
   } catch (err) {
     console.error("Error al buscar en mapa:", err);
@@ -1316,7 +1437,6 @@ async function cargarReporteRecaudacion() {
   if (!tbody) return;
 
   if (state.usuarioActivo?.rol !== "Organizador") {
-    alert("Acceso denegado: El reporte de recaudacion es exclusivo para usuarios con rol Organizador.");
     window.location.href = "index.html";
     return;
   }
@@ -1386,9 +1506,14 @@ async function cargarReporteRecaudacion() {
         compradoresHtml = `<span style="color: var(--slate-400); font-size: 0.8rem; font-style: italic;">Sin compradores</span>`;
       }
 
-      let btnCancelarHtml = !ev.cancelado 
-        ? `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`
-        : `<span style="color: var(--slate-400); font-size: 0.8rem;">Cancelado</span>`;
+      let btnCancelarHtml = "";
+      if (ev.cancelado) {
+        btnCancelarHtml = `<span style="color: var(--slate-400); font-size: 0.8rem;">Cancelado</span>`;
+      } else if (esPasado) {
+        btnCancelarHtml = `<span style="color: var(--slate-400); font-size: 0.8rem;">Finalizado</span>`;
+      } else {
+        btnCancelarHtml = `<button class="btn btn-danger btn-sm btn-cancelar-ev" data-id="${ev.idEvento}" data-nombre="${ev.nombreEvento}">Cancelar</button>`;
+      }
 
       const evRecaudacion = Number(ev.recaudacionTotal || 0);
 

@@ -1,4 +1,4 @@
-using GestionEventos.Logica;
+﻿using GestionEventos.Logica;
 using GestionEventos.Logica.Excepciones;
 
 namespace Testing;
@@ -119,6 +119,27 @@ public class EventoServiceTests : GestionTestBase
         Assert.That(disponibles.Any(e => e.Id == evento.Id), Is.True);
     }
 
+    [Test]
+    public void ObtenerParaControlAcceso_EventoYaComenzado_ApareceParaPoderValidarlo()
+    {
+        var evento = EventoSvc.Crear(DniOrganizador, "Expo Puerta", "Desc", Ahora.AddDays(5), "Predio");
+        AhoraActual = Ahora.AddDays(6);
+
+        var paraPuerta = EventoSvc.ObtenerParaControlAcceso();
+
+        Assert.That(paraPuerta.Any(e => e.Id == evento.Id), Is.True);
+    }
+
+    [Test]
+    public void ObtenerParaControlAcceso_EventoCancelado_NoApareceEnLaPuerta()
+    {
+        var evento = EventoSvc.Crear(DniOrganizador, "Expo Cancelada", "Desc", Ahora.AddDays(5), "Predio");
+        EventoSvc.Cancelar(DniOrganizador, evento.Id);
+
+        var paraPuerta = EventoSvc.ObtenerParaControlAcceso();
+
+        Assert.That(paraPuerta.Any(e => e.Id == evento.Id), Is.False);
+    }
     [Test]
     public void ObtenerParaGestion_ComoOrganizador_IncluyeEventosCancelados()
     {

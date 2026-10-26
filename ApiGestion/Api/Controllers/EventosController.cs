@@ -1,4 +1,4 @@
-using GestionEventos.Api.DTOs;
+﻿using GestionEventos.Api.DTOs;
 using GestionEventos.Logica;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,27 +14,21 @@ public class EventosController : BaseApiController
         _eventoService = eventoService;
     }
 
-    /// <summary>
-    /// Catálogo. Por defecto lista solo lo que se puede comprar (eventos no cancelados y que todavía no
-    /// ocurrieron). Con ?incluirNoDisponibles=true también devuelve los cancelados y los ya pasados.
-    /// </summary>
     [HttpGet]
-    public IActionResult ObtenerEventos([FromQuery] bool incluirNoDisponibles = false)
+    public IActionResult ObtenerEventos([FromQuery] bool incluirNoDisponibles = false, [FromQuery] bool paraControlAcceso = false)
     {
         return Ejecutar(() =>
         {
+            if (paraControlAcceso)
+            {
+                return Ok(_eventoService.ObtenerParaControlAcceso().Select(e => e.AResponse()).ToList());
+            }
+
             var eventos = incluirNoDisponibles ? _eventoService.ObtenerParaGestion(ObtenerDni()) : _eventoService.ObtenerDisponibles();
             return Ok(eventos.Select(e => e.AResponse()).ToList());
         });
     }
 
-    [HttpGet("gestion")]
-    public IActionResult ObtenerParaGestion()
-    {
-        return Ejecutar(() => Ok(_eventoService.ObtenerParaGestion(ObtenerDni()).Select(e => e.AResponse()).ToList()));
-    }
-
-    /// <summary>Detalle con sus modalidades. Existe para cualquier evento, también cancelado o pasado.</summary>
     [HttpGet("{id:guid}")]
     public IActionResult ObtenerPorId(Guid id)
     {

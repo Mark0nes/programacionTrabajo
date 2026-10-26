@@ -1,4 +1,4 @@
-using GestionEventos.Logica.Excepciones;
+﻿using GestionEventos.Logica.Excepciones;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
@@ -44,5 +44,4 @@ public class Usuario
 
     public bool EsOrganizador() => Rol == RolUsuario.Organizador;
 
-    public bool EsComprador() => Rol == RolUsuario.Comprador;
 }

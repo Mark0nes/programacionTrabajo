@@ -1,4 +1,4 @@
-using GestionEventos.Data;
+﻿using GestionEventos.Data;
 using GestionEventos.Logica.Excepciones;
 
 namespace GestionEventos.Logica;
@@ -10,7 +10,6 @@ public class EventoService
     private readonly UsuarioService _usuarioService;
     private readonly Func<DateTime> _ahora;
 
-    // "ahora" se inyecta para que los tests no dependan del reloj real.
     public EventoService(EventoRepository eventoRepository, CompraRepository compraRepository, UsuarioService usuarioService, Func<DateTime>? ahora = null)
     {
         _eventoRepository = eventoRepository ?? throw new ArgumentNullException(nameof(eventoRepository));
@@ -19,19 +18,25 @@ public class EventoService
         _ahora = ahora ?? (() => DateTime.Now);
     }
 
-    public List<Evento> ObtenerTodos()
+    /// <summary>
+    /// Eventos vigentes (no cancelados) para el control de acceso en puerta.
+    /// Permite seleccionar y validar entradas de eventos que ya comenzaron o se desarrollan hoy,
+    /// a diferencia del catálogo de compras que solo lista eventos futuros.
+    /// </summary>
+    public List<Evento> ObtenerParaControlAcceso()
     {
-        return _eventoRepository.ObtenerEventos();
+        return _eventoRepository.ObtenerEventos()
+            .Where(e => !e.Cancelado)
+            .OrderByDescending(e => e.Fecha)
+            .ToList();
     }
 
-    /// <summary>Todos los eventos (también cancelados y pasados) para que el organizador los gestione.</summary>
     public List<Evento> ObtenerParaGestion(string? dniSolicitante)
     {
         _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
         return _eventoRepository.ObtenerEventos();
     }
 
-    /// <summary>Eventos que todavía se pueden vender: ni cancelados ni ya ocurridos (catálogo).</summary>
     public List<Evento> ObtenerDisponibles()
     {
         DateTime ahora = _ahora();
@@ -122,11 +127,6 @@ public class EventoService
         return modalidad;
     }
 
-    /// <summary>
-    /// Entradas vendidas y dinero recaudado por evento. Solo cuentan las entradas NO canceladas y se
-    /// suma lo que cada una pagó realmente (con el descuento por volumen ya aplicado), así una
-    /// cancelación baja la cantidad y el dinero en la misma medida.
-    /// </summary>
     public ReporteRecaudacion ObtenerReporteRecaudacion(string? dniSolicitante)
     {
         _usuarioService.ValidarRol(dniSolicitante, RolUsuario.Organizador);
